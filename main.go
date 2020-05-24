@@ -4,12 +4,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/candidatos-info/enriquecedores/cce"
 	"github.com/labstack/echo"
 )
 
 func main() {
 	e := echo.New()
-	e.POST("/cce", dispatchCCEHandler)
+	cceHandler := cce.NewHandler()
+	e.POST("/cce", cceHandler.Post)
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		port = "8080"
