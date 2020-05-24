@@ -1,8 +1,0 @@
-.DS_Store
-.idea
-*.iml
-*.out
-.env
-.vscode/
-coverage.txt
-enriquecedores
