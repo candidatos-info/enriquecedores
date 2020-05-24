@@ -2,3 +2,7 @@
 .idea
 *.iml
 *.out
+.env
+.vscode/
+coverage.txt
+enriquecedores
