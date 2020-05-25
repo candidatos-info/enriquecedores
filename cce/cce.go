@@ -1,18 +1,28 @@
 package cce
 
 import (
+	"archive/zip"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/labstack/echo"
+)
+
+const (
+	idle       = "idle"
+	collecting = "collecting"
+	processing = "processing"
 )
 
 var (
 	// hostURL can be changed by TestPost function test for tests purposes
 	hostURL = "http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip"
+	status  = idle
 )
 
 // Handler is struct for the methods
@@ -30,6 +40,7 @@ type dispatchRequest struct {
 
 // Post should be called to dispatch the process
 func (h *Handler) Post(c echo.Context) error {
+	status = collecting
 	in := dispatchRequest{}
 	fmt.Println(c)
 	err := c.Bind(&in)
@@ -39,10 +50,9 @@ func (h *Handler) Post(c echo.Context) error {
 		payload["message"] = "Invalid request body"
 		return c.JSON(http.StatusUnprocessableEntity, payload)
 	}
-	// TODO make tests easier se essa url for fixa os testes ficam dificultados
 	downloadURL := fmt.Sprintf(hostURL, in.Year)
-	fileName := fmt.Sprintf("sheets_%d.zip", in.Year)
-	f, err := os.Create(fileName)
+	zipFile := fmt.Sprintf("sheets_%d.zip", in.Year)
+	f, err := os.Create(zipFile)
 	if err != nil {
 		log.Println(fmt.Sprintf("failed to create sheets zip file, got %q", err))
 	}
@@ -50,7 +60,64 @@ func (h *Handler) Post(c echo.Context) error {
 	if err != nil {
 		log.Panicln(fmt.Sprintf("failed to download sheets, got %q", err))
 	}
+	status = processing
+	zipDestination := strings.Split(zipFile, ".zip")[0]
+	err = unzip(zipFile, zipDestination)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to unzip files, %q", err))
+	}
 	return c.JSON(http.StatusOK, "ok")
+}
+
+func unzip(fileUnzip, unzipDesitination string) error {
+	r, err := zip.OpenReader(fileUnzip)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	os.MkdirAll(unzipDesitination, 0755)
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				panic(err)
+			}
+		}()
+		path := filepath.Join(unzipDesitination, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			os.MkdirAll(filepath.Dir(path), f.Mode())
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, f := range r.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // download a file and writes on the given writer
