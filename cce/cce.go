@@ -4,9 +4,13 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/labstack/echo"
 )
 
 const (
@@ -32,6 +36,53 @@ func NewHandler() *Handler {
 
 type dispatchRequest struct {
 	Year int64 `json:"year"`
+}
+
+// Post should be called to dispatch the process
+func (h *Handler) Post(c echo.Context) error {
+	status = collecting
+	in := dispatchRequest{}
+	err := c.Bind(&in)
+	payload := make(map[string]string)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to bind request input: %q", err))
+		payload["message"] = "Invalid request body"
+		return c.JSON(http.StatusUnprocessableEntity, payload)
+	}
+	downloadURL := fmt.Sprintf(hostURL, in.Year)
+	zipFile := fmt.Sprintf("sheets_%d.zip", in.Year)
+	f, err := os.Create(zipFile)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to create sheets zip file, got %q", err))
+		payload["message"] = "failed to sheet files"
+		return c.JSON(http.StatusInternalServerError, payload)
+	}
+	err = donwloadFile(downloadURL, f)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to download sheets, got %q", err))
+		payload["message"] = "failed download sheets"
+		return c.JSON(http.StatusInternalServerError, payload)
+	}
+	status = processing
+	zipDestination := strings.Split(zipFile, ".zip")[0]
+	err = unzip(zipFile, zipDestination)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed to unzip files, %q", err))
+		payload["message"] = "failed to unzip files"
+		return c.JSON(http.StatusInternalServerError, payload)
+	}
+	err = processFiles(zipDestination)
+	if err != nil {
+		log.Println(fmt.Sprintf("failed on processing files, got %q", err))
+		payload["message"] = "failed process files"
+		return c.JSON(http.StatusInternalServerError, payload)
+	}
+	payload["message"] = "ok"
+	return c.JSON(http.StatusOK, payload)
+}
+
+func processFiles(filesToProcess string) error {
+	return nil
 }
 
 func unzip(fileUnzip, unzipDesitination string) error {
