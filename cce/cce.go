@@ -15,10 +15,6 @@ var (
 	hostURL = "http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip"
 )
 
-const (
-	outputPath = "sheets.zip"
-)
-
 // Handler is struct for the methods
 type Handler struct {
 }
@@ -45,7 +41,8 @@ func (h *Handler) Post(c echo.Context) error {
 	}
 	// TODO make tests easier se essa url for fixa os testes ficam dificultados
 	downloadURL := fmt.Sprintf(hostURL, in.Year)
-	f, err := os.Create(outputPath)
+	fileName := fmt.Sprintf("sheets_%d.zip", in.Year)
+	f, err := os.Create(fileName)
 	if err != nil {
 		log.Println(fmt.Sprintf("failed to create sheets zip file, got %q", err))
 	}

@@ -26,8 +26,9 @@ func TestPost(t *testing.T) {
 		w.Write(bytes)
 	}))
 	defer ts.Close()
+	cceHandler := NewHandler()
 	e := echo.New()
-	// point the hostURL to the server test host
+	// pointing the hostURL to the server test host
 	hostURL = fmt.Sprintf("%s/%s", ts.URL, "%d")
 	testCases := []struct {
 		year int64
@@ -49,10 +50,14 @@ func TestPost(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		cceHandler := NewHandler()
 		cceHandler.Post(c)
 		res := rec.Result()
 		defer res.Body.Close()
+		expectedGeneratedFileName := fmt.Sprintf("sheets_%d.zip", in.Year)
+		_, err = ioutil.ReadFile(expectedGeneratedFileName)
+		if err != nil {
+			t.Errorf("failed to read the expected file, got err %q", err)
+		}
 	}
 }
 
