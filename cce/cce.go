@@ -4,13 +4,9 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/labstack/echo"
 )
 
 const (
@@ -36,37 +32,6 @@ func NewHandler() *Handler {
 
 type dispatchRequest struct {
 	Year int64 `json:"year"`
-}
-
-// Post should be called to dispatch the process
-func (h *Handler) Post(c echo.Context) error {
-	status = collecting
-	in := dispatchRequest{}
-	fmt.Println(c)
-	err := c.Bind(&in)
-	if err != nil {
-		log.Println(fmt.Sprintf("failed to bind request input: %q", err))
-		payload := make(map[string]string)
-		payload["message"] = "Invalid request body"
-		return c.JSON(http.StatusUnprocessableEntity, payload)
-	}
-	downloadURL := fmt.Sprintf(hostURL, in.Year)
-	zipFile := fmt.Sprintf("sheets_%d.zip", in.Year)
-	f, err := os.Create(zipFile)
-	if err != nil {
-		log.Println(fmt.Sprintf("failed to create sheets zip file, got %q", err))
-	}
-	err = donwloadFile(downloadURL, f)
-	if err != nil {
-		log.Panicln(fmt.Sprintf("failed to download sheets, got %q", err))
-	}
-	status = processing
-	zipDestination := strings.Split(zipFile, ".zip")[0]
-	err = unzip(zipFile, zipDestination)
-	if err != nil {
-		log.Println(fmt.Sprintf("failed to unzip files, %q", err))
-	}
-	return c.JSON(http.StatusOK, "ok")
 }
 
 func unzip(fileUnzip, unzipDesitination string) error {
