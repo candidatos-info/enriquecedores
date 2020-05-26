@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo"
@@ -26,14 +28,26 @@ const (
 	ballotName    = 18
 	cpf           = 20
 	email         = 21
+	state         = 10
+	year          = 2
 )
 
-type message struct {
+type payload struct {
 	BallotName    string `json:"ballotName"`
 	BallotNumber  string `json:"ballotNumber"`
 	CPF           string `json:"cpf"`
 	CandidateName string `json:"name"`
 	Email         string `json:"email"`
+	State         string `json:"state"`
+	Year          string `json:"year"`
+}
+
+type message struct {
+	Year         int64  `json:"year"`
+	BallotNumber int64  `json:"ballotNumber"`
+	State        string `json:"state"`
+	Payload      []byte `json:"payload"`
+	Origin       string `json:"origin"`
 }
 
 var (
@@ -126,12 +140,31 @@ func processFiles(filesToProcess string) error {
 					return fmt.Errorf("failed to read csv file %s, got %q", pathToOpen, err)
 				}
 				if currentLine > 0 {
-					message := &message{
+					payload := &payload{
 						BallotName:    line[ballotName],
 						BallotNumber:  line[ballotNumber],
 						CPF:           line[cpf],
 						CandidateName: line[candidateName],
 						Email:         line[email],
+					}
+					payloadBytes, err := json.Marshal(payload)
+					if err != nil {
+						return fmt.Errorf("failed to get message bytes, got %q", err)
+					}
+					year, err := strconv.ParseInt(line[year], 10, 64)
+					if err != nil {
+						return fmt.Errorf("failed to parse year from string to int, got %q", err)
+					}
+					ballotNumber, err := strconv.ParseInt(line[ballotNumber], 10, 64)
+					if err != nil {
+						return fmt.Errorf("failed to parse ballot number from string to int, got %q", err)
+					}
+					message := message{
+						Payload:      payloadBytes,
+						Year:         year,
+						BallotNumber: ballotNumber,
+						State:        line[state],
+						Origin:       "cce",
 					}
 					fmt.Println(message)
 				}
