@@ -2,8 +2,11 @@ package cce
 
 import (
 	"archive/zip"
+	"bufio"
+	"encoding/csv"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +20,21 @@ const (
 	idle       = "idle"
 	collecting = "collecting"
 	processing = "processing"
+
+	ballotNumber  = 16
+	candidateName = 17
+	ballotName    = 18
+	cpf           = 20
+	email         = 21
 )
+
+type message struct {
+	BallotName    string `json:"ballotName"`
+	BallotNumber  string `json:"ballotNumber"`
+	CPF           string `json:"cpf"`
+	CandidateName string `json:"name"`
+	Email         string `json:"email"`
+}
 
 var (
 	// hostURL can be changed by TestPost function test for tests purposes
@@ -82,9 +99,53 @@ func (h *Handler) Post(c echo.Context) error {
 }
 
 func processFiles(filesToProcess string) error {
+	files, err := ioutil.ReadDir(filesToProcess)
+	if err != nil {
+		log.Fatal(err)
+		return fmt.Errorf("failed to read files dir")
+	}
+	for _, f := range files {
+		fileName := f.Name()
+		extension := strings.Split(fileName, ".")[1]
+		if extension == "csv" {
+			pathToOpen := fmt.Sprintf("./%s/%s", filesToProcess, fileName)
+			f, err := os.Open(pathToOpen)
+			defer f.Close()
+			if err != nil {
+				return fmt.Errorf("failed to open sheet file %s, got %q", pathToOpen, err)
+			}
+			csvReader := csv.NewReader(bufio.NewReader(f))
+			csvReader.Comma = ';'
+			csvReader.LazyQuotes = true
+			currentLine := 0
+			for {
+				line, err := csvReader.Read()
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					return fmt.Errorf("failed to read csv file %s, got %q", pathToOpen, err)
+				}
+				if currentLine > 0 {
+					message := &message{
+						BallotName:    line[ballotName],
+						BallotNumber:  line[ballotNumber],
+						CPF:           line[cpf],
+						CandidateName: line[candidateName],
+						Email:         line[email],
+					}
+					fmt.Println(message)
+				}
+				currentLine++
+			}
+			if err != nil {
+				return fmt.Errorf("unable to parse csv file %s, got %q", pathToOpen, err)
+			}
+		}
+	}
 	return nil
 }
 
+// unzip files
 func unzip(fileUnzip, unzipDesitination string) error {
 	r, err := zip.OpenReader(fileUnzip)
 	if err != nil {
