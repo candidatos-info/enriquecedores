@@ -29,8 +29,8 @@ func TestPost(t *testing.T) {
 	defer ts.Close()
 	cceHandler := NewHandler()
 	e := echo.New()
-	// pointing the hostURL to the server test host
-	hostURL = fmt.Sprintf("%s/%s", ts.URL, "%d")
+	// pointing the hostURhostURLFormatStringL to the server test host
+	hostURLFormatString = fmt.Sprintf("%s/%s", ts.URL, "%d")
 	testCases := []struct {
 		year int64
 	}{

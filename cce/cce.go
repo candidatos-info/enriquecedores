@@ -23,13 +23,13 @@ const (
 	collecting = "collecting"
 	processing = "processing"
 
-	ballotNumber  = 16
-	candidateName = 17
-	ballotName    = 18
-	cpf           = 20
-	email         = 21
-	state         = 10
-	year          = 2
+	ballotNumber  = 16 //ballor number on the csv file is at column 16
+	candidateName = 17 //candidate name on the csv file is at column 17
+	ballotName    = 18 //ballor name on the csv file is at column 18
+	cpf           = 20 //cpf on csv is at column 20
+	email         = 21 //email on csv is at column 21
+	state         = 10 //state on csv is at column 10
+	year          = 2  //year on csv in at column 2
 )
 
 type payload struct {
@@ -51,72 +51,78 @@ type message struct {
 }
 
 var (
-	// hostURL can be changed by TestPost function test for tests purposes
-	hostURL = "http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip"
-	status  = idle
+	// hostURLFormatString can be changed by TestPost function test for tests purposes
+	hostURLFormatString = "http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip"
 )
 
 // Handler is struct for the methods
 type Handler struct {
+	status string
 }
 
 // NewHandler does
 func NewHandler() *Handler {
-	return &Handler{}
+	return &Handler{
+		status: "idle",
+	}
 }
 
-type dispatchRequest struct {
+type postRequest struct {
 	Year int64 `json:"year"`
 }
 
 // Post should be called to dispatch the process
 func (h *Handler) Post(c echo.Context) error {
-	status = collecting
-	in := dispatchRequest{}
-	err := c.Bind(&in)
-	payload := make(map[string]string)
-	if err != nil {
+	h.status = collecting
+	in := postRequest{}
+	if err := c.Bind(&in); err != nil {
 		log.Println(fmt.Sprintf("failed to bind request input: %q", err))
-		payload["message"] = "Invalid request body"
-		return c.JSON(http.StatusUnprocessableEntity, payload)
+		bodyBytes, err := ioutil.ReadAll(c.Request().Body)
+		if err != nil {
+			log.Println(fmt.Sprintf("failed to get request body as bytes, got %q", err))
+			message := fmt.Sprintf("houve falha ao pegar os bytes do corpo da requisição com erro %q", err)
+			return c.JSON(http.StatusInternalServerError, message)
+		}
+		message := fmt.Sprintf("o corpo da requisicão enviado é inválido: %q", string(bodyBytes))
+		return c.JSON(http.StatusBadRequest, message)
 	}
-	downloadURL := fmt.Sprintf(hostURL, in.Year)
-	zipFile := fmt.Sprintf("sheets_%d.zip", in.Year)
+	downloadURL := fmt.Sprintf(hostURLFormatString, in.Year)
+	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
+	zipFile := fmt.Sprintf(zipFileName, in.Year)
 	f, err := os.Create(zipFile)
 	if err != nil {
-		log.Println(fmt.Sprintf("failed to create sheets zip file, got %q", err))
-		payload["message"] = "failed to sheet files"
-		return c.JSON(http.StatusInternalServerError, payload)
+		log.Println(fmt.Sprintf("failed to create sheets zip file with name %s, got %q", zipFileName, err))
+		message := fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", zipFileName, err)
+		return c.JSON(http.StatusInternalServerError, message)
 	}
 	err = donwloadFile(downloadURL, f)
 	if err != nil {
-		log.Println(fmt.Sprintf("failed to download sheets, got %q", err))
-		payload["message"] = "failed download sheets"
-		return c.JSON(http.StatusInternalServerError, payload)
+		log.Println(fmt.Sprintf("failed to download sheets from url %s, got %q", downloadURL, err))
+		message := fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, downloadURL, err)
+		return c.JSON(http.StatusInternalServerError, message)
 	}
-	status = processing
+	h.status = processing
 	zipDestination := strings.Split(zipFile, ".zip")[0]
 	err = unzip(zipFile, zipDestination)
 	if err != nil {
-		log.Println(fmt.Sprintf("failed to unzip files, %q", err))
-		payload["message"] = "failed to unzip files"
-		return c.JSON(http.StatusInternalServerError, payload)
+		log.Println(fmt.Sprintf("failed to unzip file %s,error: %q", zipFile, err))
+		message := fmt.Sprintf("ocorreu uma falha ao descomprimir o arquivo %s, dando erro: %q", zipFile, err)
+		return c.JSON(http.StatusInternalServerError, message)
 	}
 	err = processFiles(zipDestination)
 	if err != nil {
 		log.Println(fmt.Sprintf("failed on processing files, got %q", err))
-		payload["message"] = "failed process files"
-		return c.JSON(http.StatusInternalServerError, payload)
+		message := fmt.Sprintf("ocorreu uma falha processando os arquivos no diretório %s, erro: %q", zipDestination, err)
+		return c.JSON(http.StatusInternalServerError, message)
 	}
-	payload["message"] = "ok"
-	return c.JSON(http.StatusOK, payload)
+	message := "processo ocorreu sem falhas!"
+	return c.JSON(http.StatusOK, message)
 }
 
 func processFiles(filesToProcess string) error {
 	files, err := ioutil.ReadDir(filesToProcess)
 	if err != nil {
-		log.Fatal(err)
-		return fmt.Errorf("failed to read files dir")
+		return fmt.Errorf("failed to read files dir %s, got error: %q", filesToProcess, err)
 	}
 	for _, f := range files {
 		fileName := f.Name()
@@ -234,7 +240,7 @@ func unzip(fileUnzip, unzipDesitination string) error {
 func donwloadFile(url string, w io.Writer) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("error downloading file:%q", err)
+		return fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 	}
 	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
