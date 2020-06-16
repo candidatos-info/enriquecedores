@@ -1,2 +1,6 @@
 runtime: go113 
 
+env_variables:
+  FILES_URL: .
+  URL_FORMAT: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip
+  PORT: 8080
