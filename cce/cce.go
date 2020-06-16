@@ -47,6 +47,7 @@ func (h *Handler) post(c echo.Context) {
 		handleError(fmt.Sprintf("o corpo da requisicão enviado é inválido: %q", err), h)
 		return
 	}
+	h.status = status.Collecting
 	downloadURL := fmt.Sprintf(h.sheetsServerString, in.Year)
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
@@ -67,7 +68,6 @@ func (h *Handler) Post(c echo.Context) error {
 	if h.status != status.Idle {
 		return c.String(http.StatusServiceUnavailable, "sistema está processando dados")
 	}
-	h.status = status.Collecting
 	go h.post(c)
 	return c.String(http.StatusOK, "Requisição em processamento")
 }
