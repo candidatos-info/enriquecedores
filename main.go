@@ -9,20 +9,17 @@ import (
 )
 
 func main() {
-	userName := os.Getenv("USER_NAME")
-	if userName == "" {
+	basicAuthUserName := os.Getenv("USER_NAME")
+	if basicAuthUserName == "" {
 		log.Fatal("missing username on environment variables")
 	}
-	password := os.Getenv("PASSWORD")
-	if password == "" {
+	basicAuthPassword := os.Getenv("PASSWORD")
+	if basicAuthPassword == "" {
 		log.Fatal("missing password on environment variables")
 	}
 	e := echo.New()
 	e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
-		if username != userName || password != password {
-			return false, nil
-		}
-		return true, nil
+		return (username == basicAuthUserName && password == basicAuthPassword), nil
 	}))
 	e.POST("/cce", dispatchCCEHandler)
 	port := os.Getenv("SERVER_PORT")
