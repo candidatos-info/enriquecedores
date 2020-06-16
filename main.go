@@ -11,11 +11,11 @@ import (
 func main() {
 	basicAuthUserName := os.Getenv("USER_NAME")
 	if basicAuthUserName == "" {
-		log.Fatal("missing username on environment variables")
+		log.Fatal("missing USER_NAME on environment variables")
 	}
 	basicAuthPassword := os.Getenv("PASSWORD")
 	if basicAuthPassword == "" {
-		log.Fatal("missing password on environment variables")
+		log.Fatal("missing PASSWORD on environment variables")
 	}
 	e := echo.New()
 	e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
