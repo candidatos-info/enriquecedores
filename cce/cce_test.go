@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/labstack/echo"
 )
@@ -44,8 +43,7 @@ func TestPost(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	cceHandler.Post(c)
-	time.Sleep(time.Duration(5) * time.Second)
+	cceHandler.post(c)
 	res := rec.Result()
 	defer res.Body.Close()
 	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
