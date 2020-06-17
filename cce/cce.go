@@ -95,12 +95,13 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 	}
 	defer resp.Body.Close()
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		return nil, fmt.Errorf("error copying response content:%q", err)
-	}
 	bodyAsBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, got %q", err)
+	}
+	_, err = w.Write(bodyAsBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write bytes on file, got %q", err)
 	}
 	return bodyAsBytes, nil
 }
