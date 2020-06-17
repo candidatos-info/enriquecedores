@@ -85,7 +85,7 @@ func TestDownload(t *testing.T) {
 	}))
 	defer ts.Close()
 	var buf bytes.Buffer
-	err := donwloadFile(ts.URL, &buf)
+	_, err := donwloadFile(ts.URL, &buf)
 	if err != nil {
 		t.Errorf("want error nil, got %q", err)
 	}

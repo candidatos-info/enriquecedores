@@ -1,7 +1,6 @@
 package cce
 
 import (
-	"bufio"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -57,25 +56,20 @@ func (h *Handler) post(c echo.Context) {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", zipFileName, err), h)
 		return
 	}
-	err = donwloadFile(downloadURL, f)
+	buf, err := donwloadFile(downloadURL, f)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, downloadURL, err), h)
 		return
 	}
 	h.status = status.Processing
 	hash := md5.New()
-	file, err := os.Open(zipFileName)
-	if err != nil {
-		handleError(fmt.Sprintf("falha ao abrir arquivo .zip dos arquivos do TCE gerado, erro: %q", err), h)
-		return
-	}
-	reader := bufio.NewReader(file)
-	if _, err := io.Copy(hash, reader); err != nil {
+	if _, err := io.Copy(hash, buf); err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
 	sum := hash.Sum(nil)
 	//TODO compare hash with .hash
+	fmt.Printf("%x\n", sum)
 }
 
 // Post implements a post request for this handler
@@ -93,14 +87,14 @@ func handleError(message string, h *Handler) {
 }
 
 // download a file and writes on the given writer
-func donwloadFile(url string, w io.Writer) error {
+func donwloadFile(url string, w io.Writer) (io.Reader, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 	}
 	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		return fmt.Errorf("error copying response content:%q", err)
+		return nil, fmt.Errorf("error copying response content:%q", err)
 	}
-	return nil
+	return resp.Body, nil
 }
