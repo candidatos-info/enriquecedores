@@ -71,7 +71,8 @@ func (h *Handler) post(c echo.Context) {
 	}
 	reader := bufio.NewReader(file)
 	if _, err := io.Copy(hash, reader); err != nil {
-		log.Fatal(err)
+		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
+		return
 	}
 	sum := hash.Sum(nil)
 	//TODO compare hash with .hash
