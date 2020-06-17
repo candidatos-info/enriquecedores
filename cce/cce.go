@@ -1,9 +1,11 @@
 package cce
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -92,8 +94,13 @@ func donwloadFile(url string, w io.Writer) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 	}
+	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		return nil, fmt.Errorf("error copying response content:%q", err)
 	}
-	return resp.Body, nil
+	bodyAsBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body, got %q", err)
+	}
+	return bytes.NewReader(bodyAsBytes), nil
 }
