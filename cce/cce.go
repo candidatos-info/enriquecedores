@@ -92,7 +92,6 @@ func donwloadFile(url string, w io.Writer) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 	}
-	defer resp.Body.Close()
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		return nil, fmt.Errorf("error copying response content:%q", err)
 	}
