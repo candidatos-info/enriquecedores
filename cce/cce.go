@@ -1,6 +1,8 @@
 package cce
 
 import (
+	"bufio"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"log"
@@ -61,6 +63,18 @@ func (h *Handler) post(c echo.Context) {
 		return
 	}
 	h.status = status.Processing
+	hash := md5.New()
+	file, err := os.Open(zipFileName)
+	if err != nil {
+		handleError(fmt.Sprintf("falha ao abrir arquivo .zip dos arquivos do TCE gerado, erro: %q", err), h)
+		return
+	}
+	reader := bufio.NewReader(file)
+	if _, err := io.Copy(hash, reader); err != nil {
+		log.Fatal(err)
+	}
+	sum := hash.Sum(nil)
+	//TODO compare hash with .hash
 }
 
 // Post implements a post request for this handler
