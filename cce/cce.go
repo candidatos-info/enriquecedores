@@ -65,7 +65,7 @@ func (h *Handler) post(c echo.Context) {
 	}
 	h.status = status.Processing
 	hash := md5.New()
-	if _, err := io.Copy(hash, buf); err != nil {
+	if _, err := io.Copy(hash, bytes.NewReader(buf)); err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
@@ -89,7 +89,7 @@ func handleError(message string, h *Handler) {
 }
 
 // download a file and writes on the given writer
-func donwloadFile(url string, w io.Writer) (io.Reader, error) {
+func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
@@ -102,5 +102,5 @@ func donwloadFile(url string, w io.Writer) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, got %q", err)
 	}
-	return bytes.NewReader(bodyAsBytes), nil
+	return bodyAsBytes, nil
 }
