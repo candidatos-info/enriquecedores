@@ -71,45 +71,66 @@ func (h *Handler) post(in *postRequest) {
 	if strings.Contains(h.BaseDir, "gc://") {
 		executeForGCP()
 	} else {
-		executeForLocal(hash, buf)
+		e := executeForLocal(hash, buf)
+		fmt.Println(e)
 	}
 }
 
-func executeForLocal(hash string, buf []byte) {
+func executeForLocal(hash string, buf []byte) error {
 	file, err := os.Open(".hash")
 	// checking if .hash file already exists
 	if err != nil || file == nil {
+		fmt.Println("NAO TINHA .HASH")
 		// TODO execute action
+		f, e := unzipDownloadedFiles(buf)
+		if e != nil {
+			fmt.Println("AQI ", e)
+		}
+		fmt.Println(len(f))
 		file, err := os.Create(".hash")
 		if err != nil {
 			return fmt.Errorf("failed to create .hash file, got %q", err)
 		}
-		_, err := file.Write([]byte(hash))
+		defer file.Close()
+		_, err = file.Write([]byte(hash))
 		if err != nil {
 			return fmt.Errorf("failed to write hash on .hash file, got %q", err)
 		}
 	}
+	defer file.Close()
+	fmt.Println("1")
 	hashFileBytes, err := ioutil.ReadAll(file)
+	fmt.Println("2")
 	if err != nil {
+		fmt.Println("CU")
 		return fmt.Errorf("failed to read bytes from .hash file, got %q", err)
 	}
+	fmt.Println(3)
 	if hash == string(hashFileBytes) {
 		return nil
 	}
 	// TODO execute action
+	fmt.Println(4)
+	f, e := unzipDownloadedFiles(buf)
+	fmt.Println("UNZIPED")
+	if e != nil {
+		fmt.Println("AQI ", e)
+	}
+	fmt.Println(len(f))
+	return nil
 }
 
-func unzipDownloadedFiles(bytes []byte) ([]os.FileInfo, error) {
+func unzipDownloadedFiles(buf []byte) ([]os.FileInfo, error) {
 	unzipDesitination := "unziped"
-	r, err := zip.OpenReader(fileUnzip)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	// r, err := zip.OpenReader("fileUnzip")
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer func() {
+	// 	if err := r.Close(); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }()
 	os.MkdirAll(unzipDesitination, 0755)
 	extractAndWriteFile := func(f *zip.File) error {
 		rc, err := f.Open()
@@ -118,7 +139,7 @@ func unzipDownloadedFiles(bytes []byte) ([]os.FileInfo, error) {
 		}
 		defer func() {
 			if err := rc.Close(); err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 		}()
 		path := filepath.Join(unzipDesitination, f.Name)
@@ -132,7 +153,7 @@ func unzipDownloadedFiles(bytes []byte) ([]os.FileInfo, error) {
 			}
 			defer func() {
 				if err := f.Close(); err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 			}()
 			_, err = io.Copy(f, rc)
@@ -142,13 +163,22 @@ func unzipDownloadedFiles(bytes []byte) ([]os.FileInfo, error) {
 		}
 		return nil
 	}
-	for _, f := range r.File {
+	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		fmt.Println("UM PAU ", err)
+		return nil, err
+	}
+	for _, f := range zipReader.File {
 		err := extractAndWriteFile(f)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	files, err := ioutil.ReadDir(unzipDesitination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read files dir %s, got error: %q", unzipDesitination, err)
+	}
+	return files, nil
 }
 
 func executeForGCP() {

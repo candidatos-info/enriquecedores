@@ -29,10 +29,12 @@ func fakeServer(t *testing.T) *httptest.Server {
 }
 
 func TestPost(t *testing.T) {
+	ts := fakeServer(t)
+	defer ts.Close()
 	in := postRequest{
 		Year: 2016,
 	}
-	cceHandler := New("URL", ".")
+	cceHandler := New(ts.URL+"/%d", ".")
 	cceHandler.post(&in)
 	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	_, err := ioutil.ReadFile(expectedGeneratedFileName)
