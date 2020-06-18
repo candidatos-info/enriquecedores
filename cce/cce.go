@@ -16,10 +16,11 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	sheetsServerString string        // URL to retrieve files from TCE
-	baseDir            string        // files path
-	status             status.Status // enrich status
-	err                string        // last error message
+	SheetsServerString string        `json:"sheets_server_string"` // URL to retrieve files from TCE
+	BaseDir            string        `json:"base_dir"`             // files path
+	Status             status.Status `json:"status"`               // enrich status
+	Err                string        `json:"err"`                  // last error message
+	FileHash           string        `json:"file_hash"`            // hash of last downloaded .zip file
 }
 
 // used on Post
@@ -30,28 +31,21 @@ type postRequest struct {
 // New returns a new CCE handler
 func New(sheetsServerString, baseDir string) *Handler {
 	return &Handler{
-		sheetsServerString: sheetsServerString,
-		baseDir:            baseDir,
-		status:             status.Idle,
+		SheetsServerString: sheetsServerString,
+		BaseDir:            baseDir,
+		Status:             status.Idle,
 	}
 }
 
 // Get returns current state and last error
 func (h *Handler) Get(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"errorMessage": h.err,
-		"status":       h.status,
-	})
+	return c.JSON(http.StatusOK, h)
 }
 
-func (h *Handler) post(c echo.Context) {
-	in := postRequest{}
-	if err := c.Bind(&in); err != nil {
-		handleError(fmt.Sprintf("o corpo da requisicão enviado é inválido: %q", err), h)
-		return
-	}
-	h.status = status.Collecting
-	downloadURL := fmt.Sprintf(h.sheetsServerString, in.Year)
+func (h *Handler) post(in *postRequest) {
+	h.Status = status.Collecting
+	log.Println("starting to collect")
+	downloadURL := fmt.Sprintf(h.SheetsServerString, in.Year)
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
 	if err != nil {
@@ -63,29 +57,41 @@ func (h *Handler) post(c echo.Context) {
 		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, downloadURL, err), h)
 		return
 	}
-	h.status = status.Processing
-	hash := md5.New()
-	if _, err := io.Copy(hash, bytes.NewReader(buf)); err != nil {
+	h.Status = status.Processing
+	log.Println("starting processment")
+	hash, err := hash(buf)
+	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
-	sum := hash.Sum(nil)
-	//TODO compare hash with .hash
-	fmt.Printf("%x\n", sum)
+	fmt.Println(hash)
 }
 
 // Post implements a post request for this handler
 func (h *Handler) Post(c echo.Context) error {
-	if h.status != status.Idle {
+	if h.Status != status.Idle {
 		return c.String(http.StatusServiceUnavailable, "sistema está processando dados")
 	}
-	go h.post(c)
+	in := &postRequest{}
+	if err := c.Bind(&in); err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("o corpo da requisicão enviado é inválido: %q", err))
+	}
+	go h.post(in)
 	return c.String(http.StatusOK, "Requisição em processamento")
+}
+
+func hash(b []byte) (string, error) {
+	hash := md5.New()
+	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
+		return "", err
+	}
+	sum := hash.Sum(nil)
+	return fmt.Sprintf("%x", sum), nil
 }
 
 func handleError(message string, h *Handler) {
 	log.Println(message)
-	h.err = message
+	h.Err = message
 }
 
 // download a file and writes on the given writer
