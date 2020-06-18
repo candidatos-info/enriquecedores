@@ -17,7 +17,7 @@ import (
 // Handler is a struct to hold important data for this package
 type Handler struct {
 	SheetsServerString string        `json:"sheets_server_string"` // URL to retrieve files from TCE
-	BaseDir            string        `json:"base_dir"`             // files path
+	BaseDir            string        `json:"base_dir"`             // path where .hash and candidates file will be placed. If you want to use GCS as storage put gc://${BUCKET}, but if you want to use as local just use .
 	Status             status.Status `json:"status"`               // enrich status
 	Err                string        `json:"err"`                  // last error message
 	FileHash           string        `json:"file_hash"`            // hash of last downloaded .zip file
