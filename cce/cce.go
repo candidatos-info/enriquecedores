@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
@@ -65,6 +66,43 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	fmt.Println(hash)
+	if strings.Contains(h.BaseDir, "gc://") {
+		executeForGCP()
+	} else {
+		executeForLocal(hash, buf)
+	}
+}
+
+func executeForLocal(hash string, buf []byte) {
+	file, err := os.Open(".hash")
+	// checking if .hash file already exists
+	if err != nil || file == nil {
+		// TODO execute action
+		file, err := os.Create(".hash")
+		if err != nil {
+			return fmt.Errorf("failed to create .hash file, got %q", err)
+		}
+		_, err := file.Write([]byte(hash))
+		if err != nil {
+			return fmt.Errorf("failed to write hash on .hash file, got %q", err)
+		}
+	}
+	hashFileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("failed to read bytes from .hash file, got %q", err)
+	}
+	if hash == string(hashFileBytes) {
+		return nil
+	}
+	// TODO execute action
+}
+
+func unzipDownloadedFiles(bytes []byte) ([]os.FileInfo, error) {
+
+}
+
+func executeForGCP() {
+
 }
 
 // Post implements a post request for this handler
