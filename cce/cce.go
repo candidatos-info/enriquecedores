@@ -44,7 +44,6 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	log.Println("starting to collect")
 	downloadURL := fmt.Sprintf(h.SheetsServerString, in.Year)
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
@@ -58,7 +57,6 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	h.Status = status.Processing
-	log.Println("starting processment")
 	hash, err := hash(buf)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
