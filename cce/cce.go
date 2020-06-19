@@ -67,70 +67,60 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
-	fmt.Println(hash)
 	if strings.Contains(h.BaseDir, "gc://") {
-		executeForGCP()
+		executeForGCS()
 	} else {
-		e := executeForLocal(hash, buf)
-		fmt.Println(e)
+		err := executeForLocal(hash, buf)
+		handleError(fmt.Sprintf("falha ao tratar arquivos baixados, erro %q", err), h)
+		return
 	}
 }
 
 func executeForLocal(hash string, buf []byte) error {
+	files, err := handleDownloadedBytes(hash, buf)
+	if err != nil {
+		return err
+	}
+	// TODO generate candidaturas from files
+	return nil
+}
+
+func handleDownloadedBytes(hash string, buf []byte) ([]os.FileInfo, error) {
 	file, err := os.Open(".hash")
 	// checking if .hash file already exists
 	if err != nil || file == nil {
-		fmt.Println("NAO TINHA .HASH")
-		// TODO execute action
 		f, e := unzipDownloadedFiles(buf)
 		if e != nil {
-			fmt.Println("AQI ", e)
+			return nil, fmt.Errorf("failed to unzip downloaded files, got %q", err)
 		}
-		fmt.Println(len(f))
 		file, err := os.Create(".hash")
 		if err != nil {
-			return fmt.Errorf("failed to create .hash file, got %q", err)
+			return nil, fmt.Errorf("failed to create .hash file, got %q", err)
 		}
 		defer file.Close()
 		_, err = file.Write([]byte(hash))
 		if err != nil {
-			return fmt.Errorf("failed to write hash on .hash file, got %q", err)
+			return nil, fmt.Errorf("failed to write hash on .hash file, got %q", err)
 		}
+		return f, nil
 	}
 	defer file.Close()
-	fmt.Println("1")
 	hashFileBytes, err := ioutil.ReadAll(file)
-	fmt.Println("2")
 	if err != nil {
-		fmt.Println("CU")
-		return fmt.Errorf("failed to read bytes from .hash file, got %q", err)
+		return nil, fmt.Errorf("failed to read bytes from .hash file, got %q", err)
 	}
-	fmt.Println(3)
 	if hash == string(hashFileBytes) {
-		return nil
+		return nil, fmt.Errorf("downloaded file still the same")
 	}
-	// TODO execute action
-	fmt.Println(4)
 	f, e := unzipDownloadedFiles(buf)
-	fmt.Println("UNZIPED")
 	if e != nil {
-		fmt.Println("AQI ", e)
+		return nil, fmt.Errorf("failed to unzip downloaded files, got %q", err)
 	}
-	fmt.Println(len(f))
-	return nil
+	return f, nil
 }
 
 func unzipDownloadedFiles(buf []byte) ([]os.FileInfo, error) {
 	unzipDesitination := "unziped"
-	// r, err := zip.OpenReader("fileUnzip")
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer func() {
-	// 	if err := r.Close(); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }()
 	os.MkdirAll(unzipDesitination, 0755)
 	extractAndWriteFile := func(f *zip.File) error {
 		rc, err := f.Open()
@@ -165,7 +155,6 @@ func unzipDownloadedFiles(buf []byte) ([]os.FileInfo, error) {
 	}
 	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
-		fmt.Println("UM PAU ", err)
 		return nil, err
 	}
 	for _, f := range zipReader.File {
@@ -181,7 +170,7 @@ func unzipDownloadedFiles(buf []byte) ([]os.FileInfo, error) {
 	return files, nil
 }
 
-func executeForGCP() {
+func executeForGCS() {
 
 }
 
