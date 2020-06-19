@@ -65,7 +65,7 @@ func TestInvalidPostRequest(t *testing.T) {
 func TestHash(t *testing.T) {
 	f, err := os.Open("files.zip")
 	if err != nil {
-		t.Errorf("exepcted err to be nil when opening test file")
+		t.Errorf("expected err to be nil when opening test file")
 	}
 	bytes, err := ioutil.ReadAll(f)
 	if err != nil {
