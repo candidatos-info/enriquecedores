@@ -16,11 +16,12 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SheetsServerString string        `json:"sheets_server_string"` // URL to retrieve files from TCE
-	BaseDir            string        `json:"base_dir"`             // files path
-	Status             status.Status `json:"status"`               // enrich status
-	Err                string        `json:"err"`                  // last error message
-	FileHash           string        `json:"file_hash"`            // hash of last downloaded .zip file
+	SourceURL       string        `json:"source_url"`        // URL to retrieve files from TCE
+	BaseDir         string        `json:"base_dir"`          // files path
+	Status          status.Status `json:"status"`            // enrich status
+	Err             string        `json:"err"`               // last error message
+	SourceFileHash  string        `json:"source_file_hash"`  // hash of last downloaded .zip file
+	SourceLocalPath string        `json:"source_local_path"` // path of .zip file
 }
 
 // used on Post
@@ -31,9 +32,9 @@ type postRequest struct {
 // New returns a new CCE handler
 func New(sheetsServerString, baseDir string) *Handler {
 	return &Handler{
-		SheetsServerString: sheetsServerString,
-		BaseDir:            baseDir,
-		Status:             status.Idle,
+		SourceURL: sheetsServerString,
+		BaseDir:   baseDir,
+		Status:    status.Idle,
 	}
 }
 
@@ -44,25 +45,24 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	downloadURL := fmt.Sprintf(h.SheetsServerString, in.Year)
+	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", zipFileName, err), h)
 		return
 	}
-	buf, err := donwloadFile(downloadURL, f)
+	buf, err := donwloadFile(h.SourceURL, f)
 	if err != nil {
-		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, downloadURL, err), h)
+		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, h.SourceURL, err), h)
 		return
 	}
 	h.Status = status.Processing
-	hash, err := hash(buf)
+	_, err = hash(buf)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
-	fmt.Println(hash)
 }
 
 // Post implements a post request for this handler

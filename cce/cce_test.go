@@ -69,11 +69,11 @@ func TestHash(t *testing.T) {
 	}
 	bytes, err := ioutil.ReadAll(f)
 	if err != nil {
-		t.Errorf("exepcted err to be nil when reading file")
+		t.Errorf("expected err to be nil when reading file")
 	}
 	h, err := hash(bytes)
 	if err != nil {
-		t.Errorf("exepcted err to be nil")
+		t.Errorf("expected err to be nil")
 	}
 	if h != "ed90a292c8a264622d726c2d17650d27" {
 		t.Errorf("want hash ed90a292c8a264622d726c2d17650d27, got %s", h)
@@ -94,6 +94,6 @@ func TestDownload(t *testing.T) {
 		t.Errorf("want %s, got %s", "string", buf.String())
 	}
 	if b == nil {
-		t.Errorf("exepcted buf different of nil")
+		t.Errorf("expected buf different of nil")
 	}
 }
