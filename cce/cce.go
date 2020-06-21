@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
@@ -17,12 +16,11 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SourceURL       string        `json:"source_url"`        // URL to retrieve files from TSE
-	BaseDir         string        `json:"base_dir"`          // files path
+	SourceURL       string        `json:"source_url"`        // URL to retrieve files. It can be a path for a file or an URL
 	Status          status.Status `json:"status"`            // enrich status
 	Err             string        `json:"err"`               // last error message
 	SourceFileHash  string        `json:"source_file_hash"`  // hash of last downloaded .zip file
-	SourceLocalPath string        `json:"source_local_path"` // path of .zip file
+	SourceLocalPath string        `json:"source_local_path"` //  the path where downloaded files should stay
 }
 
 // used on Post
@@ -31,11 +29,11 @@ type postRequest struct {
 }
 
 // New returns a new CCE handler
-func New(sheetsServerString, baseDir string) *Handler {
+func New(sheetsServerString, sourceLocalPath string) *Handler {
 	return &Handler{
-		SourceURL: sheetsServerString,
-		BaseDir:   baseDir,
-		Status:    status.Idle,
+		SourceURL:       sheetsServerString,
+		SourceLocalPath: sourceLocalPath,
+		Status:          status.Idle,
 	}
 }
 
@@ -64,7 +62,6 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
-	if strings.Contains(h.)
 }
 
 // Post implements a post request for this handler
