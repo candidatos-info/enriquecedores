@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testFile = "files.zip"
+	testFile = "file.txt"
 )
 
 func fakeServer(t *testing.T) *httptest.Server {
@@ -29,15 +29,22 @@ func fakeServer(t *testing.T) *httptest.Server {
 }
 
 func TestPost(t *testing.T) {
+	ts := fakeServer(t)
+	defer ts.Close()
 	in := postRequest{
 		Year: 2016,
 	}
-	cceHandler := New("URL", ".")
+	fakeURLString := ts.URL + "/%d"
+	cceHandler := New(fakeURLString, ".")
 	cceHandler.post(&in)
 	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
-	_, err := ioutil.ReadFile(expectedGeneratedFileName)
+	bytes, err := ioutil.ReadFile(expectedGeneratedFileName)
 	if err != nil {
 		t.Errorf("failed to read the expected file, got err %q", err)
+	}
+	content := string(bytes)
+	if content != "Ola" {
+		t.Errorf("expected content to be Ola, got %s", content)
 	}
 }
 
@@ -95,5 +102,16 @@ func TestDownload(t *testing.T) {
 	}
 	if b == nil {
 		t.Errorf("expected buf different of nil")
+	}
+}
+
+func TestDonwloadWithFile(t *testing.T) {
+	f, err := os.Create("file.txt")
+	if err != nil {
+		fmt.Println("MERDA ", err)
+	}
+	_, err = donwloadFile("file:///Users/abuarquemf/Downloads/boleto.pdf", f)
+	if err != nil {
+		fmt.Println("IH ", err)
 	}
 }

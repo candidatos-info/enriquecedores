@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
@@ -45,7 +46,9 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
+	if strings.Contains(h.SourceURL, "http") {
+		h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
+	}
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
 	if err != nil {
@@ -94,12 +97,24 @@ func handleError(message string, h *Handler) {
 
 // download a file and writes on the given writer
 func donwloadFile(url string, w io.Writer) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+	var res *http.Response
+	var err error
+	if strings.Contains(url, "http") {
+		res, err = http.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+		}
+	} else {
+		t := &http.Transport{}
+		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+		c := &http.Client{Transport: t}
+		res, err = c.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve file system with path %s, got error %q", url, err)
+		}
 	}
-	defer resp.Body.Close()
-	bodyAsBytes, err := ioutil.ReadAll(resp.Body)
+	defer res.Body.Close()
+	bodyAsBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, got %q", err)
 	}
