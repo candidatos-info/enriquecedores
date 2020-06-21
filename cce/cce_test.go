@@ -104,14 +104,3 @@ func TestDownload(t *testing.T) {
 		t.Errorf("expected buf different of nil")
 	}
 }
-
-func TestDonwloadWithFile(t *testing.T) {
-	f, err := os.Create("file.txt")
-	if err != nil {
-		fmt.Println("MERDA ", err)
-	}
-	_, err = donwloadFile("file:///Users/abuarquemf/Downloads/boleto.pdf", f)
-	if err != nil {
-		fmt.Println("IH ", err)
-	}
-}
