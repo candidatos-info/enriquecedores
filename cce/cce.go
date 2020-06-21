@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
@@ -57,11 +58,51 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	h.Status = status.Processing
-	_, err = hash(buf)
+	ha, err := hash(buf)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
+	if strings.Contains(h.SourceLocalPath, "gc://") {
+		// TODO add GCS implementation
+	} else {
+		err := executeForLocal(ha, in.Year, buf)
+		if err != nil {
+			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
+			return
+		}
+		h.Status = status.Idle
+	}
+}
+
+func executeForLocal(hash string, year int, buf []byte) error {
+	hashFile, err := resolveHashFile(year)
+	if err != nil {
+		return err
+	}
+	hashFileBytes, err := ioutil.ReadAll(hashFile)
+	if err != nil {
+		return fmt.Errorf("failed to read bytes of hash file")
+	}
+	if hash == string(hashFileBytes) {
+		log.Println(fmt.Sprintf("arquivo baixado é o mesmo, possui o mesmo hash %s", hash))
+		return nil
+	}
+	// TODO unzip file and iterate through files
+	return nil
+}
+
+func resolveHashFile(year int) (*os.File, error) {
+	hashFileName := fmt.Sprintf("cce_hash_%d", year)
+	hashFile, err := os.Open(hashFileName)
+	if err != nil {
+		hashFile, err := os.Create(hashFileName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create hash file for cce, got %q", err)
+		}
+		return hashFile, nil
+	}
+	return hashFile, nil
 }
 
 // Post implements a post request for this handler
