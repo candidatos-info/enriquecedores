@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
@@ -16,7 +17,7 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SourceURL       string        `json:"source_url"`        // URL to retrieve files from TCE
+	SourceURL       string        `json:"source_url"`        // URL to retrieve files from TSE
 	BaseDir         string        `json:"base_dir"`          // files path
 	Status          status.Status `json:"status"`            // enrich status
 	Err             string        `json:"err"`               // last error message
@@ -63,6 +64,7 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
+	if strings.Contains(h.)
 }
 
 // Post implements a post request for this handler
