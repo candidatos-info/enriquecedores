@@ -99,19 +99,22 @@ func handleError(message string, h *Handler) {
 func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	var res *http.Response
 	var err error
-	if strings.Contains(url, "http") {
-		res, err = http.Get(url)
+	t := &http.Transport{}
+	c := &http.Client{Transport: t}
+	if strings.HasPrefix(url, "http") {
+		// TODO change to url fetch
+		res, err = c.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
 		}
-	} else {
-		t := &http.Transport{}
+	} else if strings.HasPrefix(url, "file") {
 		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-		c := &http.Client{Transport: t}
 		res, err = c.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve file system with path %s, got error %q", url, err)
 		}
+	} else {
+		return nil, fmt.Errorf("protocolo %s não suportado", url[0:5])
 	}
 	defer res.Body.Close()
 	bodyAsBytes, err := ioutil.ReadAll(res.Body)
