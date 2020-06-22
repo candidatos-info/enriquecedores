@@ -46,7 +46,7 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	if strings.Contains(h.SourceURL, "http") {
+	if strings.Contains(h.SourceURL, "http") { // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, this if handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
 		h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
 	}
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
