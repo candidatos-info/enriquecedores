@@ -17,11 +17,12 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SourceURL       string        `json:"source_url"`        // URL to retrieve files. It can be a path for a file or an URL
-	Status          status.Status `json:"status"`            // enrich status
-	Err             string        `json:"err"`               // last error message
-	SourceFileHash  string        `json:"source_file_hash"`  // hash of last downloaded .zip file
-	SourceLocalPath string        `json:"source_local_path"` //  the path where downloaded files should stay
+	SourceURL        string        `json:"source_url"`        // URL to retrieve files. It can be a path for a file or an URL
+	Status           status.Status `json:"status"`            // enrich status
+	Err              string        `json:"err"`               // last error message
+	SourceFileHash   string        `json:"source_file_hash"`  // hash of last downloaded .zip file
+	SourceLocalPath  string        `json:"source_local_path"` // the path where downloaded files should stay
+	CandidaturesPath string        `json:"candidatures_path"` // the place where candidatures files will stay
 }
 
 // used on Post
@@ -32,9 +33,9 @@ type postRequest struct {
 // New returns a new CCE handler
 func New(sheetsServerString, sourceLocalPath string) *Handler {
 	return &Handler{
-		SourceURL:       sheetsServerString,
-		SourceLocalPath: sourceLocalPath,
-		Status:          status.Idle,
+		SourceURL:        sheetsServerString,
+		CandidaturesPath: sourceLocalPath,
+		Status:           status.Idle,
 	}
 }
 
@@ -63,7 +64,7 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
 		return
 	}
-	if strings.Contains(h.SourceLocalPath, "gc://") {
+	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
 		err := executeForLocal(ha, in.Year, buf)
@@ -82,10 +83,10 @@ func executeForLocal(hash string, year int, buf []byte) error {
 	}
 	hashFileBytes, err := ioutil.ReadAll(hashFile)
 	if err != nil {
-		return fmt.Errorf("failed to read bytes of hash file")
+		return fmt.Errorf("failed to read bytes of file %s, got error %q", hashFile.Name(), err)
 	}
 	if hash == string(hashFileBytes) {
-		log.Println(fmt.Sprintf("arquivo baixado é o mesmo, possui o mesmo hash %s", hash))
+		log.Printf("arquivo baixado é o mesmo, possui o mesmo hash %s\n", hash)
 		return nil
 	}
 	// TODO unzip file and iterate through files
@@ -94,13 +95,17 @@ func executeForLocal(hash string, year int, buf []byte) error {
 
 func resolveHashFile(year int) (*os.File, error) {
 	hashFileName := fmt.Sprintf("cce_hash_%d", year)
-	hashFile, err := os.Open(hashFileName)
-	if err != nil {
-		hashFile, err := os.Create(hashFileName)
+	_, err := os.Stat(hashFileName)
+	if err == nil {
+		f, err := os.Open(hashFileName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create hash file for cce, got %q", err)
+			return nil, fmt.Errorf("failed to open file %s, got %q", hashFileName, err)
 		}
-		return hashFile, nil
+		return f, nil
+	}
+	hashFile, err := os.Create(hashFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s file for cce, got %q", hashFileName, err)
 	}
 	return hashFile, nil
 }
@@ -130,6 +135,7 @@ func hash(b []byte) (string, error) {
 func handleError(message string, h *Handler) {
 	log.Println(message)
 	h.Err = message
+	h.Status = status.Idle
 }
 
 // download a file and writes on the given writer
