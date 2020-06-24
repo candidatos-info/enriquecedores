@@ -46,9 +46,7 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	if strings.Contains(h.SourceURL, "http") { // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, this if handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
-		h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
-	}
+	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year) // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, this if handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
 	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
 	f, err := os.Create(zipFileName)
 	if err != nil {
@@ -63,7 +61,7 @@ func (h *Handler) post(in *postRequest) {
 	h.Status = status.Processing
 	_, err = hash(buf)
 	if err != nil {
-		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
+		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
 }
