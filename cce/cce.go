@@ -58,12 +58,13 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, h.SourceURL, err), h)
 		return
 	}
-	h.Status = status.Processing
+	h.Status = status.Hashing
 	ha, err := hash(buf)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
+	h.Status = status.Processing
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
@@ -81,10 +82,10 @@ func executeForLocal(hash string, year int, buf []byte) error {
 	}
 	hashFileBytes, err := ioutil.ReadAll(hashFile)
 	if err != nil {
-		return fmt.Errorf("failed to read bytes of file %s, got error %q", hashFile.Name(), err)
+		return fmt.Errorf("falha ao ler os bytes do arquivo %s, erro: %q", hashFile.Name(), err)
 	}
 	if hash == string(hashFileBytes) {
-		log.Printf("arquivo baixado é o mesmo, possui o mesmo hash %s\n", hash)
+		log.Printf("arquivo baixado é o mesmo (possui o mesmo hash %s)\n", hash)
 		return nil
 	}
 	// TODO unzip file and iterate through files
@@ -97,13 +98,13 @@ func resolveHashFile(year int) (*os.File, error) {
 	if err == nil {
 		f, err := os.Open(hashFileName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open file %s, got %q", hashFileName, err)
+			return nil, fmt.Errorf("falha ao abrir o arquivo %s, erro: %q", hashFileName, err)
 		}
 		return f, nil
 	}
 	hashFile, err := os.Create(hashFileName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create %s file for cce, got %q", hashFileName, err)
+		return nil, fmt.Errorf("falha ao criar arquivo %s para cce, erro: %q", hashFileName, err)
 	}
 	return hashFile, nil
 }
@@ -146,13 +147,13 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 		// TODO change to url fetch
 		res, err = c.Get(url)
 		if err != nil {
-			return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+			return nil, fmt.Errorf("problema ao baixar os arquivos da url %s, erro: %q", url, err)
 		}
 	} else if strings.HasPrefix(url, "file") {
 		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 		res, err = c.Get(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve file system with path %s, got error %q", url, err)
+			return nil, fmt.Errorf("falha ao buscar arquivos do sistema com caminho %s, erro: %q", url, err)
 		}
 	} else {
 		return nil, fmt.Errorf("protocolo %s não suportado", url[0:5])
@@ -160,11 +161,11 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	defer res.Body.Close()
 	bodyAsBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body, got %q", err)
+		return nil, fmt.Errorf("falha ao ler os bytes da resposta da requisição, erro: %q", err)
 	}
 	_, err = w.Write(bodyAsBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write bytes on file, got %q", err)
+		return nil, fmt.Errorf("falha ao escrever bytes no arquivo, erro: %q", err)
 	}
 	return bodyAsBytes, nil
 }
