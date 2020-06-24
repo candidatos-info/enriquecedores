@@ -46,8 +46,8 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year) // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, this if handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
-	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
+	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)          // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, it handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
+	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year) // TODO add it to state
 	f, err := os.Create(zipFileName)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", zipFileName, err), h)
