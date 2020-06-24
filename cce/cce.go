@@ -67,12 +67,10 @@ func (h *Handler) post(in *postRequest) {
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		err := executeForLocal(ha, in.Year, buf)
-		if err != nil {
+		if err := executeForLocal(ha, in.Year, buf); err != nil {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
-		h.Status = status.Idle
 	}
 }
 
