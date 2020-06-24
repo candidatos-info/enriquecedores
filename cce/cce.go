@@ -46,8 +46,8 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post(in *postRequest) {
 	h.Status = status.Collecting
-	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)
-	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
+	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)          // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, it handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
+	zipFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year) // TODO add it to state
 	f, err := os.Create(zipFileName)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", zipFileName, err), h)
@@ -61,7 +61,7 @@ func (h *Handler) post(in *postRequest) {
 	h.Status = status.Processing
 	ha, err := hash(buf)
 	if err != nil {
-		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TCE baixado, erro: %q", err), h)
+		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
@@ -138,12 +138,27 @@ func handleError(message string, h *Handler) {
 
 // download a file and writes on the given writer
 func donwloadFile(url string, w io.Writer) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+	var res *http.Response
+	var err error
+	t := &http.Transport{}
+	c := &http.Client{Transport: t}
+	if strings.HasPrefix(url, "http") {
+		// TODO change to url fetch
+		res, err = c.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("error downloading file from url %s, got error :%q", url, err)
+		}
+	} else if strings.HasPrefix(url, "file") {
+		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+		res, err = c.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve file system with path %s, got error %q", url, err)
+		}
+	} else {
+		return nil, fmt.Errorf("protocolo %s não suportado", url[0:5])
 	}
-	defer resp.Body.Close()
-	bodyAsBytes, err := ioutil.ReadAll(resp.Body)
+	defer res.Body.Close()
+	bodyAsBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body, got %q", err)
 	}
