@@ -58,12 +58,13 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, h.SourceURL, err), h)
 		return
 	}
-	h.Status = status.Processing
+	h.Status = status.Hashing
 	ha, err := hash(buf)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
+	h.Status = status.Processing
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
