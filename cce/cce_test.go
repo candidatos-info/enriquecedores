@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testFile = "file.txt"
+	testFile = "file_2016.txt"
 )
 
 func fakeServer(t *testing.T) *httptest.Server {
@@ -29,15 +29,15 @@ func fakeServer(t *testing.T) *httptest.Server {
 }
 
 func TestPost(t *testing.T) {
-	ts := fakeServer(t)
-	defer ts.Close()
-	in := postRequest{
-		Year: 2016,
+	path, err := os.Getwd()
+	if err != nil {
+		t.Errorf("expected to have err nil when getting current directory, got %q", err)
 	}
-	fakeURLString := ts.URL + "/%d"
-	cceHandler := New(fakeURLString, ".")
-	cceHandler.post(&in)
-	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", in.Year)
+	year := 2016
+	sourceURL := fmt.Sprintf("file://%s/file_%d.txt", path, year)
+	cceHandler := New(sourceURL, ".")
+	cceHandler.post()
+	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", year)
 	bytes, err := ioutil.ReadFile(expectedGeneratedFileName)
 	if err != nil {
 		t.Errorf("failed to read the expected file, got err %q", err)
@@ -70,7 +70,7 @@ func TestInvalidPostRequest(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
-	f, err := os.Open("files.zip")
+	f, err := os.Open("files_2016.zip")
 	if err != nil {
 		t.Errorf("expected err to be nil when opening test file")
 	}
@@ -102,5 +102,24 @@ func TestDownload(t *testing.T) {
 	}
 	if b == nil {
 		t.Errorf("expected buf different of nil")
+	}
+}
+
+func TestGetYearFromURL_Sucess(t *testing.T) {
+	testCases := []struct {
+		in  string
+		out int
+	}{
+		{"http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip", 2016},
+		{"https://host/anos/2019", 2019},
+	}
+	for _, tt := range testCases {
+		year, err := getYearFromURL(tt.in)
+		if err != nil {
+			t.Errorf("expected err nil, got %q", err)
+		}
+		if year != tt.out {
+			t.Errorf("expected year %d, got %d", tt.out, year)
+		}
 	}
 }

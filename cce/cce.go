@@ -9,10 +9,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
+)
+
+var (
+	digitsRegExp = regexp.MustCompile("[0-9]+")
 )
 
 // Handler is a struct to hold important data for this package
@@ -44,10 +50,14 @@ func (h *Handler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, h)
 }
 
-func (h *Handler) post(in *postRequest) {
+func (h *Handler) post() {
 	h.Status = status.Collecting
-	h.SourceURL = fmt.Sprintf(h.SourceURL, in.Year)               // the TSE URL contains the election year (for exemple: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip). So, if an address with prefix http(s) is passed, it handles the concatenation of the year passed on request body and the given address into a string to be used to GET request. If the string has no prefix HTTP(S) is expected that it has file://, pointing to an absolute path
-	h.SourceLocalPath = fmt.Sprintf("cce_sheets_%d.zip", in.Year) // TODO add it to state
+	electionYear, err := getYearFromURL(h.SourceURL) // extracting the election year from source URL
+	if err != nil {
+		handleError(err.Error(), h)
+		return
+	}
+	h.SourceLocalPath = fmt.Sprintf("cce_sheets_%d.zip", electionYear)
 	f, err := os.Create(h.SourceLocalPath)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", h.SourceLocalPath, err), h)
@@ -55,7 +65,7 @@ func (h *Handler) post(in *postRequest) {
 	}
 	buf, err := donwloadFile(h.SourceURL, f)
 	if err != nil {
-		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", in.Year, h.SourceURL, err), h)
+		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", electionYear, h.SourceURL, err), h)
 		return
 	}
 	h.Status = status.Hashing
@@ -64,18 +74,29 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
-	h.Status = status.Processing
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		if err := executeForLocal(ha, in.Year, buf); err != nil {
+		if err := executeForLocal(ha, electionYear, buf, h); err != nil {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
 	}
 }
 
-func executeForLocal(hash string, year int, buf []byte) error {
+func getYearFromURL(url string) (int, error) {
+	matches := digitsRegExp.FindAllString(url, -1)
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("não foi encontrado o ano de eleição na URL %s", url)
+	}
+	year, err := strconv.Atoi(matches[0])
+	if err != nil {
+		return 0, fmt.Errorf("falha ao converter ano de eleição de string para número")
+	}
+	return year, nil
+}
+
+func executeForLocal(hash string, year int, buf []byte, h *Handler) error {
 	hashFile, err := resolveHashFile(year)
 	if err != nil {
 		return err
@@ -88,6 +109,7 @@ func executeForLocal(hash string, year int, buf []byte) error {
 		log.Printf("arquivo baixado é o mesmo (possui o mesmo hash %s)\n", hash)
 		return nil
 	}
+	h.Status = status.Processing
 	// TODO unzip file and iterate through files
 	return nil
 }
@@ -114,11 +136,7 @@ func (h *Handler) Post(c echo.Context) error {
 	if h.Status != status.Idle {
 		return c.String(http.StatusServiceUnavailable, "sistema está processando dados")
 	}
-	in := &postRequest{}
-	if err := c.Bind(&in); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("o corpo da requisicão enviado é inválido: %q", err))
-	}
-	go h.post(in)
+	go h.post()
 	return c.String(http.StatusOK, "Requisição em processamento")
 }
 
