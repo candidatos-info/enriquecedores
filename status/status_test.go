@@ -10,7 +10,8 @@ func TestText(t *testing.T) {
 	}{
 		{"Testing idle status", 0, "System is idle"},
 		{"Testing collecting status", 1, "System is collecting data"},
-		{"Testing processing status", 2, "System is processing data"},
+		{"Testing hashing status", 2, "Getting hash of downloaded file"},
+		{"Testing processing status", 3, "System is processing data"},
 		{"Testing unknown status", 505, ""},
 	}
 	for _, tt := range testCases {
