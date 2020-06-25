@@ -1,8 +1,11 @@
 package cce
 
 import (
+	"archive/zip"
+	"bufio"
 	"bytes"
 	"crypto/md5"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
@@ -83,12 +87,83 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		return nil
 	}
 	h.Status = status.Processing
-	// TODO unzip file and iterate through files
+	downloadedFiles, err := unzipDownloadedFiles(buf)
+	if err != nil {
+		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
+	}
+	for _, file := range downloadedFiles {
+		csvReader := csv.NewReader(bufio.NewReader(file))
+		csvReader.Comma = ';'
+		csvReader.LazyQuotes = true
+		// TODO read lines and mount struct Descritor
+	}
 	return nil
 }
 
+func unzipDownloadedFiles(buf []byte) ([]*os.File, error) {
+	unzipDestination := "unzipped"
+	os.MkdirAll(unzipDestination, 0755)
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				log.Fatal(err)
+			}
+		}()
+		path := filepath.Join(unzipDestination, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			os.MkdirAll(filepath.Dir(path), f.Mode())
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					log.Fatal(err)
+				}
+			}()
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range zipReader.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var files []*os.File
+	err = filepath.Walk(unzipDestination, func(path string, info os.FileInfo, err error) error {
+		pathToFile := fmt.Sprintf("%s", path)
+		if path != unzipDestination && strings.HasSuffix(path, ".csv") {
+			file, err := os.Open(pathToFile)
+			if err != nil {
+				return fmt.Errorf("falha ao abrir arquivo %s, erro: %q", pathToFile, err)
+			}
+			files = append(files, file)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
 func resolveHashFile(sourceURL string) (*os.File, error) {
-	hashFileName := fmt.Sprintf("cce_hash_%s", sourceURL)
+	hashFileName := fmt.Sprintf("cce_hash_%s", path.Base(sourceURL))
 	_, err := os.Stat(hashFileName)
 	if err == nil {
 		f, err := os.Open(hashFileName)

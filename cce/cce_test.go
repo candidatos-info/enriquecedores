@@ -34,17 +34,13 @@ func TestPost(t *testing.T) {
 		t.Errorf("expected to have err nil when getting current directory, got %q", err)
 	}
 	year := 2016
-	sourceURL := fmt.Sprintf("file://%s/file_%d.txt", path, year)
+	sourceURL := fmt.Sprintf("file://%s/files_%d.zip", path, year)
 	cceHandler := New(sourceURL, ".")
 	cceHandler.post()
-	expectedGeneratedFileName := fmt.Sprintf("cce_file_%d.txt", year)
-	bytes, err := ioutil.ReadFile(expectedGeneratedFileName)
+	expectedGeneratedFileName := fmt.Sprintf("cce_files_%d.zip", year)
+	_, err = ioutil.ReadFile(expectedGeneratedFileName)
 	if err != nil {
 		t.Errorf("failed to read the expected file, got err %q", err)
-	}
-	content := string(bytes)
-	if content != "Ola" {
-		t.Errorf("expected content to be Ola, got %s", content)
 	}
 }
 
@@ -102,5 +98,25 @@ func TestDownload(t *testing.T) {
 	}
 	if b == nil {
 		t.Errorf("expected buf different of nil")
+	}
+}
+
+func TestUnzipDownloadedFiles(t *testing.T) {
+	fileToUnzip := "files_2016.zip"
+	file, err := os.Open(fileToUnzip)
+	if err != nil {
+		t.Errorf("expected to have err nil when opening sample zip files, got %q", err)
+	}
+	defer file.Close()
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		t.Errorf("expected to have err nil when reading bytes of sample file, got %q", err)
+	}
+	files, err := unzipDownloadedFiles(fileBytes)
+	if err != nil {
+		t.Errorf("failed to unzip sample files, got %q", err)
+	}
+	if len(files) != 6 {
+		t.Errorf("expected to have 6 csv files decompressed files, got %d", len(files))
 	}
 }
