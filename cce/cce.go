@@ -9,16 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
-	"strconv"
+	"path"
 	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
-)
-
-var (
-	digitsRegExp = regexp.MustCompile("[0-9]+")
 )
 
 // Handler is a struct to hold important data for this package
@@ -29,11 +24,6 @@ type Handler struct {
 	SourceFileHash   string        `json:"source_file_hash"`  // hash of last downloaded .zip file
 	SourceLocalPath  string        `json:"source_local_path"` // the path where downloaded files should stay
 	CandidaturesPath string        `json:"candidatures_path"` // the place where candidatures files will stay
-}
-
-// used on Post
-type postRequest struct {
-	Year int `json:"year"`
 }
 
 // New returns a new CCE handler
@@ -52,12 +42,7 @@ func (h *Handler) Get(c echo.Context) error {
 
 func (h *Handler) post() {
 	h.Status = status.Collecting
-	electionYear, err := getYearFromURL(h.SourceURL) // extracting the election year from source URL
-	if err != nil {
-		handleError(err.Error(), h)
-		return
-	}
-	h.SourceLocalPath = fmt.Sprintf("cce_sheets_%d.zip", electionYear)
+	h.SourceLocalPath = fmt.Sprintf("cce_%s", path.Base(h.SourceURL))
 	f, err := os.Create(h.SourceLocalPath)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", h.SourceLocalPath, err), h)
@@ -65,7 +50,7 @@ func (h *Handler) post() {
 	}
 	buf, err := donwloadFile(h.SourceURL, f)
 	if err != nil {
-		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv da legislatura %d pelo link %s, errro: %q", electionYear, h.SourceURL, err), h)
+		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv pelo link %s, errro: %q", h.SourceURL, err), h)
 		return
 	}
 	h.Status = status.Hashing
@@ -77,27 +62,15 @@ func (h *Handler) post() {
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		if err := executeForLocal(ha, electionYear, buf, h); err != nil {
+		if err := executeForLocal(ha, buf, h); err != nil {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
 	}
 }
 
-func getYearFromURL(url string) (int, error) {
-	matches := digitsRegExp.FindAllString(url, -1)
-	if len(matches) == 0 {
-		return 0, fmt.Errorf("não foi encontrado o ano de eleição na URL %s", url)
-	}
-	year, err := strconv.Atoi(matches[0])
-	if err != nil {
-		return 0, fmt.Errorf("falha ao converter ano de eleição de string para número")
-	}
-	return year, nil
-}
-
-func executeForLocal(hash string, year int, buf []byte, h *Handler) error {
-	hashFile, err := resolveHashFile(year)
+func executeForLocal(hash string, buf []byte, h *Handler) error {
+	hashFile, err := resolveHashFile(h.SourceURL)
 	if err != nil {
 		return err
 	}
@@ -114,8 +87,8 @@ func executeForLocal(hash string, year int, buf []byte, h *Handler) error {
 	return nil
 }
 
-func resolveHashFile(year int) (*os.File, error) {
-	hashFileName := fmt.Sprintf("cce_hash_%d", year)
+func resolveHashFile(sourceURL string) (*os.File, error) {
+	hashFileName := fmt.Sprintf("cce_hash_%s", sourceURL)
 	_, err := os.Stat(hashFileName)
 	if err == nil {
 		f, err := os.Open(hashFileName)

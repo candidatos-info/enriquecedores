@@ -37,7 +37,7 @@ func TestPost(t *testing.T) {
 	sourceURL := fmt.Sprintf("file://%s/file_%d.txt", path, year)
 	cceHandler := New(sourceURL, ".")
 	cceHandler.post()
-	expectedGeneratedFileName := fmt.Sprintf("cce_sheets_%d.zip", year)
+	expectedGeneratedFileName := fmt.Sprintf("cce_file_%d.txt", year)
 	bytes, err := ioutil.ReadFile(expectedGeneratedFileName)
 	if err != nil {
 		t.Errorf("failed to read the expected file, got err %q", err)
@@ -102,24 +102,5 @@ func TestDownload(t *testing.T) {
 	}
 	if b == nil {
 		t.Errorf("expected buf different of nil")
-	}
-}
-
-func TestGetYearFromURL_Sucess(t *testing.T) {
-	testCases := []struct {
-		in  string
-		out int
-	}{
-		{"http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2016.zip", 2016},
-		{"https://host/anos/2019", 2019},
-	}
-	for _, tt := range testCases {
-		year, err := getYearFromURL(tt.in)
-		if err != nil {
-			t.Errorf("expected err nil, got %q", err)
-		}
-		if year != tt.out {
-			t.Errorf("expected year %d, got %d", tt.out, year)
-		}
 	}
 }
