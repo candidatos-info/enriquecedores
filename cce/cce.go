@@ -100,7 +100,7 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 	return nil
 }
 
-// It unzip downloaded .zip and returns only the .csv files
+// It unzips downloaded .zip and returns only the .csv files
 func unzipDownloadedFiles(buf []byte) ([]*os.File, error) {
 	unzipDestination := "unzipped"
 	os.MkdirAll(unzipDestination, 0755)
