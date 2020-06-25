@@ -211,7 +211,6 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	t := &http.Transport{}
 	c := &http.Client{Transport: t}
 	if strings.HasPrefix(url, "http") {
-		// TODO change to url fetch
 		res, err = c.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("problema ao baixar os arquivos da url %s, erro: %q", url, err)
