@@ -2,10 +2,8 @@ package cce
 
 import (
 	"archive/zip"
-	"bufio"
 	"bytes"
 	"crypto/md5"
-	"encoding/csv"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,12 +20,13 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SourceURL        string        `json:"source_url"`        // URL to retrieve files. It can be a path for a file or an URL
-	Status           status.Status `json:"status"`            // enrich status
-	Err              string        `json:"err"`               // last error message
-	SourceFileHash   string        `json:"source_file_hash"`  // hash of last downloaded .zip file
-	SourceLocalPath  string        `json:"source_local_path"` // the path where downloaded files should stay
-	CandidaturesPath string        `json:"candidatures_path"` // the place where candidatures files will stay
+	SourceURL        string        `json:"source_url"`         // URL to retrieve files. It can be a path for a file or an URL
+	Status           status.Status `json:"status"`             // enrich status
+	Err              string        `json:"err"`                // last error message
+	SourceFileHash   string        `json:"source_file_hash"`   // hash of last downloaded .zip file
+	SourceLocalPath  string        `json:"source_local_path"`  // the path where downloaded files should stay
+	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
+	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
 }
 
 // New returns a new CCE handler
@@ -59,6 +58,7 @@ func (h *Handler) post() {
 	}
 	h.Status = status.Hashing
 	ha, err := hash(buf)
+	h.SourceFileHash = ha
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
@@ -87,80 +87,68 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		return nil
 	}
 	h.Status = status.Processing
-	downloadedFiles, err := unzipDownloadedFiles(buf)
+	downloadedFiles, err := unzipDownloadedFiles(buf, h)
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
 	}
 	for _, file := range downloadedFiles {
-		csvReader := csv.NewReader(bufio.NewReader(file))
-		csvReader.Comma = ';'
-		csvReader.LazyQuotes = true
+		// csvReader := csv.NewReader(bufio.NewReader(file))
+		// csvReader.Comma = ';'
+		// csvReader.LazyQuotes = true
 		// TODO read lines and mount struct Descritor
+		fmt.Println("CU ", file)
 	}
 	return nil
 }
 
-// It unzips downloaded .zip and returns only the .csv files
-func unzipDownloadedFiles(buf []byte) ([]*os.File, error) {
-	unzipDestination := "unzipped"
-	os.MkdirAll(unzipDestination, 0755)
-	extractAndWriteFile := func(f *zip.File) error {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := rc.Close(); err != nil {
-				log.Fatal(err)
-			}
-		}()
-		path := filepath.Join(unzipDestination, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
-		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					log.Fatal(err)
-				}
-			}()
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+// It unzips downloaded .zip on a temporary directory
+// and returns the path of unziped files with suffix .csv
+func unzipDownloadedFiles(buf []byte, h *Handler) ([]string, error) {
+	unzipDestination, err := ioutil.TempDir("", "unzipped")
+	h.UnzippedFilesDir = unzipDestination
+	if err != nil {
+		return nil, fmt.Errorf("falha ao criar diretório temporário unzipped, erro: %q", err)
 	}
 	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		return nil, err
 	}
+	var paths []string
 	for _, f := range zipReader.File {
-		err := extractAndWriteFile(f)
+		rc, err := f.Open()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("falha ao abrir arquivo %s, erro %q", f.Name, err)
 		}
-	}
-	var files []*os.File
-	err = filepath.Walk(unzipDestination, func(path string, info os.FileInfo, err error) error {
-		pathToFile := fmt.Sprintf("%s", path)
-		if path != unzipDestination && strings.HasSuffix(path, ".csv") {
-			file, err := os.Open(pathToFile)
+		path := filepath.Join(unzipDestination, f.Name)
+		if strings.HasSuffix(path, ".csv") {
+			paths = append(paths, path)
+		}
+		if f.FileInfo().IsDir() {
+			err := os.MkdirAll(path, f.Mode())
 			if err != nil {
-				return fmt.Errorf("falha ao abrir arquivo %s, erro: %q", pathToFile, err)
+				return nil, fmt.Errorf("falha ao criar arquivo com nome %s, erro %q", path, err)
 			}
-			files = append(files, file)
+		} else {
+			err := os.MkdirAll(filepath.Dir(path), f.Mode())
+			if err != nil {
+				return nil, fmt.Errorf("falha ao criar arquivo com nome %s, erro %q", path, err)
+			}
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return nil, fmt.Errorf("falha ao abrir arquivo %s, erro %q", path, err)
+			}
+			if _, err = io.Copy(f, rc); err != nil {
+				return nil, fmt.Errorf("falha ao copiar conteúdo para arquivo temporário")
+			}
+			if err := f.Close(); err != nil {
+				log.Fatal(err)
+			}
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		if err := rc.Close(); err != nil {
+			return nil, fmt.Errorf("falha ao fechar leitor de arquivo, erro %q", err)
+		}
 	}
-	return files, nil
+	return paths, nil
 }
 
 func resolveHashFile(sourceURL string) (*os.File, error) {
