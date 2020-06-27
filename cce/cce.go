@@ -63,6 +63,12 @@ func (h *Handler) post() {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
+	unzipDestination, err := ioutil.TempDir("", "unzipped")
+	if err != nil {
+		handleError(fmt.Sprintf("falha ao criar diretório temporário unzipped, erro: %q", err), h)
+		return
+	}
+	h.UnzippedFilesDir = unzipDestination
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
@@ -70,6 +76,9 @@ func (h *Handler) post() {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
+	}
+	if err = os.RemoveAll(unzipDestination); err != nil {
+		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado, erro %q", err), h)
 	}
 }
 
@@ -87,28 +96,19 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		return nil
 	}
 	h.Status = status.Processing
-	downloadedFiles, err := unzipDownloadedFiles(buf, h)
+	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
 	}
 	for _, file := range downloadedFiles {
-		// csvReader := csv.NewReader(bufio.NewReader(file))
-		// csvReader.Comma = ';'
-		// csvReader.LazyQuotes = true
-		// TODO read lines and mount struct Descritor
-		fmt.Println("CU ", file)
+		fmt.Println(file)
 	}
 	return nil
 }
 
 // It unzips downloaded .zip on a temporary directory
 // and returns the path of unziped files with suffix .csv
-func unzipDownloadedFiles(buf []byte, h *Handler) ([]string, error) {
-	unzipDestination, err := ioutil.TempDir("", "unzipped")
-	h.UnzippedFilesDir = unzipDestination
-	if err != nil {
-		return nil, fmt.Errorf("falha ao criar diretório temporário unzipped, erro: %q", err)
-	}
+func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error) {
 	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
 	if err != nil {
 		return nil, err
@@ -124,28 +124,26 @@ func unzipDownloadedFiles(buf []byte, h *Handler) ([]string, error) {
 			paths = append(paths, path)
 		}
 		if f.FileInfo().IsDir() {
-			err := os.MkdirAll(path, f.Mode())
-			if err != nil {
-				return nil, fmt.Errorf("falha ao criar arquivo com nome %s, erro %q", path, err)
+			if err := os.MkdirAll(path, f.Mode()); err != nil {
+				return nil, fmt.Errorf("falha ao criar diretório com nome %s, erro %q", path, err)
 			}
 		} else {
-			err := os.MkdirAll(filepath.Dir(path), f.Mode())
-			if err != nil {
-				return nil, fmt.Errorf("falha ao criar arquivo com nome %s, erro %q", path, err)
+			if err := os.MkdirAll(filepath.Dir(path), f.Mode()); err != nil {
+				return nil, fmt.Errorf("falha ao criar diretório com nome %s, erro %q", path, err)
 			}
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return nil, fmt.Errorf("falha ao abrir arquivo %s, erro %q", path, err)
 			}
 			if _, err = io.Copy(f, rc); err != nil {
-				return nil, fmt.Errorf("falha ao copiar conteúdo para arquivo temporário")
+				return nil, fmt.Errorf("falha ao copiar conteúdo para arquivo temporário %s", path)
 			}
 			if err := f.Close(); err != nil {
-				log.Fatal(err)
+				return nil, fmt.Errorf("falha ao fechar arquivo criado em diretorio temporario, erro %q", err)
 			}
 		}
 		if err := rc.Close(); err != nil {
-			return nil, fmt.Errorf("falha ao fechar leitor de arquivo, erro %q", err)
+			return nil, fmt.Errorf("falha ao fechar leitor de arquivo dentro do zip, erro %q", err)
 		}
 	}
 	return paths, nil

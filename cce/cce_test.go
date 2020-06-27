@@ -112,11 +112,18 @@ func TestUnzipDownloadedFiles(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected to have err nil when reading bytes of sample file, got %q", err)
 	}
-	files, err := unzipDownloadedFiles(fileBytes)
+	unzipDestination, err := ioutil.TempDir("", "unzipped")
+	if err != nil {
+		t.Errorf("expected err nil when creating temporary dir, got %q", err)
+	}
+	files, err := unzipDownloadedFiles(fileBytes, unzipDestination)
 	if err != nil {
 		t.Errorf("failed to unzip sample files, got %q", err)
 	}
 	if len(files) != 6 {
 		t.Errorf("expected to have 6 csv files decompressed files, got %d", len(files))
+	}
+	if err = os.RemoveAll(unzipDestination); err != nil {
+		t.Errorf("expected to have err nil when removing temporary dir, got %q", err)
 	}
 }
