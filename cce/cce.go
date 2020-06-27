@@ -13,14 +13,17 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/candidatos-info/descritor"
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
 )
 
 const (
-	electionyear              = 2  // election year on the csv file is at column 2
+	electionYear              = 2  // election year on the csv file is at column 2
 	role                      = 14 // candidate role on the csv file is at column 14
 	state                     = 10 // state on csv is at column 10
 	city                      = 12 // city on csv is at column 12
@@ -28,14 +31,14 @@ const (
 	ballotName                = 18 // ballot name on the csv file is at column 18
 	ability                   = 23 // candidature ability on csv file is at column 23
 	deffering                 = 25 // candidate deffering on csv is at column 25
-	candidateGroup            = 26 // candidate group on csv is at column 26
+	candidatureGroup          = 26 // candidature group on csv is at column 26
 	partyNumber               = 27 // party number on csv is at column 27
 	partyLabel                = 28 // party label on csv is at column 28
 	partyName                 = 29 // party name on csv is at column 29
 	partyGroupName            = 31 // party group name on csv is at column 31
 	groupParties              = 32 // group parties on csv is at column 32
 	didDeclaredPossessions    = 55 // that column that indicates if candidate has declared possesions is 55
-	finalSituation            = 53 // the candidate final situation at end of turno (TODO Change turno by other world)
+	finalSituation            = 53 // the candidate final situation at end of election round
 	candidateState            = 35 // candidate state on csv is at column 35
 	candidateCity             = 37 // candidate city on csv is at column 36
 	candidateBirth            = 38 // candidate birth on csv is at column 38
@@ -48,6 +51,19 @@ const (
 	candidateName             = 17 // candidate name on the csv file is at column 17
 	candidateCPF              = 20 // canidate cpf on csv is at column 20
 	candidateEmail            = 21 // candidate email on csv is at column 21
+)
+
+var (
+	rolesMap = map[string]descritor.Cargo{
+		"VEREADOR":      "LM",
+		"VICE-PREFEITO": "EM",
+		"PREFEITO":      "EM",
+	}
+
+	declaredPossessions = map[string]bool{
+		"S": true,
+		"N": false,
+	}
 )
 
 // Handler is a struct to hold important data for this package
@@ -141,21 +157,114 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		csvReader := csv.NewReader(file)
 		csvReader.Comma = ';'
 		csvReader.LazyQuotes = true
-		currentLine := 0
-		for {
-			line, err := csvReader.Read()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				return fmt.Errorf("falha ao ler arquivo csv %s, erro %q", file.Name(), err)
-			}
-			if currentLine > 0 {
-				fmt.Println(line[candidateOccupation])
-			}
-			currentLine++
+		candidates, err := getCandidates(csvReader, file.Name())
+		if err != nil {
+			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
 		}
+		fmt.Println(candidates)
+		// TODO save candidates into a local file
 	}
 	return nil
+}
+
+// it iterates through csv lines and returns a map of
+// struct *descritor.Candidatura where the key is the canidate CPF.
+// To handle the duplicated canidate data lines is used the canidadate
+// CPF as search key
+func getCandidates(reader *csv.Reader, fileName string) (map[string]*descritor.Candidatura, error) {
+	candidatesMap := make(map[string]*descritor.Candidatura)
+	currentLine := 0
+	for {
+		line, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("falha ao ler arquivo csv %s, erro %q", fileName, err)
+		}
+		if currentLine > 0 {
+			currentCPF := line[candidateCPF]
+			foundCandidate := candidatesMap[currentCPF]
+			// if candidate was not found, create it and add it to candidates map
+			if foundCandidate == nil {
+				candidate, err := createCandidatureFromCSVLine(line)
+				if err != nil {
+					return nil, fmt.Errorf("falha ao criar struct de candidatura para arquivo %s na linha %d, erro %q", fileName, currentLine, err)
+				}
+				candidatesMap[currentCPF] = candidate
+			} else { // if candidates is alredy in canidates map, update the first or second round situation
+				legislatura, err := strconv.Atoi(line[electionYear])
+				if err != nil {
+					return nil, fmt.Errorf("falha ao extrair o ano de legislatura, erro %q", err)
+				}
+				if legislatura == 1 {
+					foundCandidate.SituacaoPrimeiroTurno = line[finalSituation]
+				} else {
+					foundCandidate.SituacaoSegundoTurno = line[finalSituation]
+				}
+			}
+		}
+		currentLine++
+	}
+	return candidatesMap, nil
+}
+
+// extracts data from csv columns, treat them and
+// add to strurct descritor.Candidatura. For simplicity reasons
+// is being used portuguese language for the attribute names
+func createCandidatureFromCSVLine(line []string) (*descritor.Candidatura, error) {
+	legislatura, err := strconv.Atoi(line[electionYear])
+	if err != nil {
+		return nil, fmt.Errorf("falha ao extrair o ano de legislatura, erro %q", err)
+	}
+	numeroUrna, err := strconv.Atoi(line[ballotNumber])
+	if err != nil {
+		return nil, fmt.Errorf("falha ao extrair o número de urna, erro %q", err)
+	}
+	numeroPartido, err := strconv.Atoi(line[partyNumber])
+	if err != nil {
+		return nil, fmt.Errorf("falha ao extrair número do partido, erro %q", err)
+	}
+	nascimentoCandidato, err := time.Parse("02/01/2006", line[candidateBirth])
+	if err != nil {
+		return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato, erro %q", err)
+	}
+	candidatura := &descritor.Candidatura{
+		Legislatura:       legislatura,
+		Cargo:             rolesMap[line[role]],
+		UF:                line[state],
+		Municipio:         line[city],
+		NumeroUrna:        numeroUrna,
+		NomeUrna:          line[ballotName],
+		Aptidao:           line[ability],
+		Deferimento:       line[deffering],
+		TipoAgremiacao:    line[candidatureGroup],
+		NumeroPartido:     numeroPartido,
+		LegendaPartido:    line[partyLabel],
+		NomePartido:       line[partyName],
+		NomeColigacao:     line[partyGroupName],
+		PartidosColigacao: line[groupParties],
+		DeclarouBens:      declaredPossessions[line[didDeclaredPossessions]],
+		Candidato: descritor.Candidato{
+			UF:              line[candidateState],
+			Municipio:       line[candidateCity],
+			Nascimento:      nascimentoCandidato,
+			TituloEleitoral: line[candidateVotingID],
+			Genero:          line[candidateGender],
+			GrauInstrucao:   line[candidateInstructionLevel],
+			EstadoCivil:     line[candidateCivilState],
+			Raca:            line[candidateRace],
+			Ocupacao:        line[candidateOccupation],
+			CPF:             line[candidateCPF],
+			Nome:            line[candidateName],
+			Email:           line[candidateEmail],
+		},
+	}
+	if candidatura.Legislatura == 1 {
+		candidatura.SituacaoPrimeiroTurno = line[finalSituation]
+	} else {
+		candidatura.SituacaoSegundoTurno = line[finalSituation]
+	}
+	return candidatura, nil
 }
 
 // It unzips downloaded .zip on a temporary directory
