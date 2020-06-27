@@ -46,8 +46,8 @@ const (
 	candidateRace             = 48 // candidate race is at column 48
 	candidateOccupation       = 50 // candidate occupation is at column 50
 	candidateName             = 17 // candidate name on the csv file is at column 17
-	candidatrCPF              = 20 // cpf on csv is at column 20
-	candeifateEmail           = 21 // email on csv is at column 21
+	candidateCPF              = 20 // canidate cpf on csv is at column 20
+	candidateEmail            = 21 // candidate email on csv is at column 21
 )
 
 // Handler is a struct to hold important data for this package
