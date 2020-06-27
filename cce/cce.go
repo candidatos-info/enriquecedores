@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/md5"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +17,37 @@ import (
 
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/labstack/echo"
+)
+
+const (
+	electionyear              = 2  // election year on the csv file is at column 2
+	role                      = 14 // candidate role on the csv file is at column 14
+	state                     = 10 // state on csv is at column 10
+	city                      = 12 // city on csv is at column 12
+	ballotNumber              = 16 // ballor number on the csv file is at column 16
+	ballotName                = 18 // ballot name on the csv file is at column 18
+	ability                   = 23 // candidature ability on csv file is at column 23
+	deffering                 = 25 // candidate deffering on csv is at column 25
+	candidateGroup            = 26 // candidate group on csv is at column 26
+	partyNumber               = 27 // party number on csv is at column 27
+	partyLabel                = 28 // party label on csv is at column 28
+	partyName                 = 29 // party name on csv is at column 29
+	partyGroupName            = 31 // party group name on csv is at column 31
+	groupParties              = 32 // group parties on csv is at column 32
+	didDeclaredPossessions    = 55 // that column that indicates if candidate has declared possesions is 55
+	finalSituation            = 53 // the candidate final situation at end of turno (TODO Change turno by other world)
+	candidateState            = 35 // candidate state on csv is at column 35
+	candidateCity             = 37 // candidate city on csv is at column 36
+	candidateBirth            = 38 // candidate birth on csv is at column 38
+	candidateVotingID         = 40 // candidate voting id on csv is at column 40
+	candidateGender           = 42 // candidate gender is at column 42
+	candidateInstructionLevel = 44 // candidate instruction level is at column 44
+	candidateCivilState       = 46 // candidate civil state is at column 46
+	candidateRace             = 48 // candidate race is at column 48
+	candidateOccupation       = 50 // candidate occupation is at column 50
+	candidateName             = 17 // candidate name on the csv file is at column 17
+	candidatrCPF              = 20 // cpf on csv is at column 20
+	candeifateEmail           = 21 // email on csv is at column 21
 )
 
 // Handler is a struct to hold important data for this package
@@ -100,8 +132,28 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
 	}
-	for _, file := range downloadedFiles {
-		fmt.Println(file)
+	for _, filePath := range downloadedFiles {
+		// TODO parallelize it using goroutines
+		file, err := os.Open(filePath)
+		if err != nil {
+			return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
+		}
+		csvReader := csv.NewReader(file)
+		csvReader.Comma = ';'
+		csvReader.LazyQuotes = true
+		currentLine := 0
+		for {
+			line, err := csvReader.Read()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				return fmt.Errorf("falha ao ler arquivo csv %s, erro %q", file.Name(), err)
+			}
+			if currentLine > 0 {
+				fmt.Println(line[candidateOccupation])
+			}
+			currentLine++
+		}
 	}
 	return nil
 }
