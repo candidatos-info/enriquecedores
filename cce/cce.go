@@ -154,6 +154,7 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		if err != nil {
 			return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
 		}
+		defer file.Close()
 		csvReader := csv.NewReader(file)
 		csvReader.Comma = ';'
 		csvReader.LazyQuotes = true
