@@ -1,6 +1,7 @@
 package cce
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/md5"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/candidatos-info/enriquecedores/status"
@@ -18,12 +20,13 @@ import (
 
 // Handler is a struct to hold important data for this package
 type Handler struct {
-	SourceURL        string        `json:"source_url"`        // URL to retrieve files. It can be a path for a file or an URL
-	Status           status.Status `json:"status"`            // enrich status
-	Err              string        `json:"err"`               // last error message
-	SourceFileHash   string        `json:"source_file_hash"`  // hash of last downloaded .zip file
-	SourceLocalPath  string        `json:"source_local_path"` // the path where downloaded files should stay
-	CandidaturesPath string        `json:"candidatures_path"` // the place where candidatures files will stay
+	SourceURL        string        `json:"source_url"`         // URL to retrieve files. It can be a path for a file or an URL
+	Status           status.Status `json:"status"`             // enrich status
+	Err              string        `json:"err"`                // last error message
+	SourceFileHash   string        `json:"source_file_hash"`   // hash of last downloaded .zip file
+	SourceLocalPath  string        `json:"source_local_path"`  // the path where downloaded files should stay
+	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
+	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
 }
 
 // New returns a new CCE handler
@@ -55,10 +58,17 @@ func (h *Handler) post() {
 	}
 	h.Status = status.Hashing
 	ha, err := hash(buf)
+	h.SourceFileHash = ha
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao gerar hash de arquivo do TSE baixado, erro: %q", err), h)
 		return
 	}
+	unzipDestination, err := ioutil.TempDir("", "unzipped")
+	if err != nil {
+		handleError(fmt.Sprintf("falha ao criar diretório temporário unzipped, erro: %q", err), h)
+		return
+	}
+	h.UnzippedFilesDir = unzipDestination
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
@@ -66,6 +76,9 @@ func (h *Handler) post() {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
+	}
+	if err = os.RemoveAll(unzipDestination); err != nil {
+		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado, erro %q", err), h)
 	}
 }
 
@@ -83,12 +96,61 @@ func executeForLocal(hash string, buf []byte, h *Handler) error {
 		return nil
 	}
 	h.Status = status.Processing
-	// TODO unzip file and iterate through files
+	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
+	if err != nil {
+		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
+	}
+	for _, file := range downloadedFiles {
+		fmt.Println(file)
+	}
 	return nil
 }
 
+// It unzips downloaded .zip on a temporary directory
+// and returns the path of unziped files with suffix .csv
+func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error) {
+	zipReader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, f := range zipReader.File {
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("falha ao abrir arquivo %s, erro %q", f.Name, err)
+		}
+		path := filepath.Join(unzipDestination, f.Name)
+		if strings.HasSuffix(path, ".csv") {
+			paths = append(paths, path)
+		}
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(path, f.Mode()); err != nil {
+				return nil, fmt.Errorf("falha ao criar diretório com nome %s, erro %q", path, err)
+			}
+		} else {
+			if err := os.MkdirAll(filepath.Dir(path), f.Mode()); err != nil {
+				return nil, fmt.Errorf("falha ao criar diretório com nome %s, erro %q", path, err)
+			}
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return nil, fmt.Errorf("falha ao abrir arquivo %s, erro %q", path, err)
+			}
+			if _, err = io.Copy(f, rc); err != nil {
+				return nil, fmt.Errorf("falha ao copiar conteúdo para arquivo temporário %s", path)
+			}
+			if err := f.Close(); err != nil {
+				return nil, fmt.Errorf("falha ao fechar arquivo criado em diretorio temporario, erro %q", err)
+			}
+		}
+		if err := rc.Close(); err != nil {
+			return nil, fmt.Errorf("falha ao fechar leitor de arquivo dentro do zip, erro %q", err)
+		}
+	}
+	return paths, nil
+}
+
 func resolveHashFile(sourceURL string) (*os.File, error) {
-	hashFileName := fmt.Sprintf("cce_hash_%s", sourceURL)
+	hashFileName := fmt.Sprintf("cce_hash_%s", path.Base(sourceURL))
 	_, err := os.Stat(hashFileName)
 	if err == nil {
 		f, err := os.Open(hashFileName)
@@ -135,7 +197,6 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	t := &http.Transport{}
 	c := &http.Client{Transport: t}
 	if strings.HasPrefix(url, "http") {
-		// TODO change to url fetch
 		res, err = c.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("problema ao baixar os arquivos da url %s, erro: %q", url, err)
