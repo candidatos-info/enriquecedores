@@ -14,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/candidatos-info/descritor"
 	"github.com/candidatos-info/enriquecedores/status"
@@ -24,40 +23,39 @@ import (
 
 // Candidato representa os dados de um candidato
 type Candidato struct {
-	UF              string    `json:"uf_origem" csv:"uf_origem"`               // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
-	Municipio       string    `json:"municipio_origem" csv:"municipio_origem"` // Município de nascimento do candidato.
-	Nascimento      time.Time `json:"nascimento" csv:"nascimento"`             // Data de nascimento do candidato.
-	TituloEleitoral string    `json:"titulo_eleitoral" csv:"titulo_eleitoral"` // Titulo eleitoral do candidato.
-	Genero          string    `json:"genero" csv:"genero"`                     // Gênero do candidato (MASCULINO ou FEMININO).
-	GrauInstrucao   string    `json:"grau_instrucao" csv:"grau_instrucao"`     // Grau de instrução do candidato.
-	EstadoCivil     string    `json:"estado_civil" csv:"estado_civil"`         // Estado civil do candidato.
-	Raca            string    `json:"raca" csv:"raca"`                         // Raça do candidato (como BRANCA ou PARDA).
-	Ocupacao        string    `json:"ocupacao" csv:"ocupacao"`                 // Ocupação do candidato (como COMERCIANTE e ARTISTA por exemplo).
-	CPF             string    `json:"cpf" csv:"cpf"`                           // CPF do candidato.
-	Nome            string    `json:"nome" csv:"nome"`                         // Nome de pessoa física do candidato.
-	Email           string    `json:"email" csv:"email"`                       // Email do candidato.
+	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
+	Municipio       string `csv:"NM_MUNICIPIO_NASCIMENTO"`       // Município de nascimento do candidato.
+	Nascimento      string `csv:"DT_NASCIMENTO"`                 // Data de nascimento do candidato.
+	TituloEleitoral string `csv:"NR_TITULO_ELEITORAL_CANDIDATO"` // Titulo eleitoral do candidato.
+	Genero          string `csv:"DS_GENERO"`                     // Gênero do candidato (MASCULINO ou FEMININO).
+	GrauInstrucao   string `csv:"DS_GRAU_INSTRUCAO"`             // Grau de instrução do candidato.
+	EstadoCivil     string `csv:"DS_ESTADO_CIVIL"`               // Estado civil do candidato.
+	Raca            string `csv:"DS_COR_RACA"`                   // Raça do candidato (como BRANCA ou PARDA).
+	Ocupacao        string `csv:"DS_OCUPACAO"`                   // Ocupação do candidato (como COMERCIANTE e ARTISTA por exemplo).
+	CPF             string `csv:"NR_CPF_CANDIDATO"`              // CPF do candidato.
+	Nome            string `csv:"NM_CANDIDATO"`                  // Nome de pessoa física do candidato.
+	Email           string `csv:"NM_EMAIL"`                      // Email do candidato.
 }
 
-// Candidatura representa uma
+// Candidatura representa dados de uma candidatura
 type Candidatura struct {
-	Legislatura           int    `json:"leg" csv:"ANO_ELEICAO"`                       // Ano eleitoral em que a candidatura foi homologada.
-	Cargo                 string `json:"cargo" csv:"DS_CARGO"`                        // Cargo sendo pleiteado pela candidatura.
-	UF                    string `json:"uf" csv:"SG_UF"`                              // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
-	Municipio             string `json:"municipio" csv:"municipio"`                   // Município que ocorreu a eleição.
-	NumeroUrna            int    `json:"numero_urna" csv:"numero_urna"`               // Número do candidato na urna.
-	NomeUrna              string `json:"nome_urna" csv:"nome_urna"`                   // Nome do candidato na urna.
-	Aptidao               string `json:"aptidao" csv:"aptidao"`                       // Aptidao da candidatura (podendo ser APTO ou INAPTO).
-	Deferimento           string `json:"deferimento" csv:"deferimento"`               // Situação do candidato (pondendo ser DEFERIDO ou INDEFERIDO).
-	TipoAgremiacao        string `json:"tipo_agremiacao" csv:"tipo_agremiacao"`       // Indica o tipo de agremiação do candidato (podendo ser PARTIDO ISOLADO ou AGREMIAÇÃO).
-	NumeroPartido         int    `json:"numero_partio" csv:"numero_partido"`          // Número do partido do candidato.
-	LegendaPartido        string `json:"legenda_partido" csv:"legenda_partido"`       // Legenda do partido do candidato.
-	NomePartido           string `json:"nome_partido" csv:"nome_partido"`             // Nome do partido do candidato.
-	NomeColigacao         string `json:"nome_coligacao" csv:"nome_coligacao"`         // Nome da coligação a qual o candidato pertence.
-	PartidosColigacao     string `json:"partidos_coligacao" csv:"partidos_coligacao"` // Partidos pertencentes à coligação do candidato.
-	DeclarouBens          bool   `json:"declarou_bens" csv:"declarou_bens"`           // Flag que informa se o candidato declarou seus bens na eleição.s
-	SituacaoPrimeiroTurno string `json:"situacao_1turno" csv:"situacao_1turno"`       // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
-	SituacaoSegundoTurno  string `json:"situacao_2turno" csv:"situacao_2turno"`       // Campo que informa como o candidato terminou o segundo turno da eleição, nesse caso só pondendo ficar como ELEITO ou NÃO ELEITO.
-	Candidato             `json:"candidato"`
+	Legislatura       int    `csv:"ANO_ELEICAO"`              // Ano eleitoral em que a candidatura foi homologada.
+	Cargo             string `csv:"DS_CARGO"`                 // Cargo sendo pleiteado pela candidatura.
+	UF                string `csv:"SG_UF"`                    // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
+	Municipio         string `csv:"NM_UE"`                    // Município que ocorreu a eleição.
+	NumeroUrna        int    `csv:"NR_CANDIDATO"`             // Número do candidato na urna.
+	NomeUrna          string `csv:"NM_URNA_CANDIDATO"`        // Nome do candidato na urna.
+	Aptidao           string `csv:"DS_SITUACAO_CANDIDATURA"`  // Aptidao da candidatura (podendo ser APTO ou INAPTO).
+	Deferimento       string `csv:"DS_DETALHE_SITUACAO_CAND"` // Situação do candidato (pondendo ser DEFERIDO ou INDEFERIDO).
+	TipoAgremiacao    string `csv:"TP_AGREMIACAO"`            // Indica o tipo de agremiação do candidato (podendo ser PARTIDO ISOLADO ou AGREMIAÇÃO).
+	NumeroPartido     int    `csv:"NR_PARTIDO"`               // Número do partido do candidato.
+	LegendaPartido    string `csv:"SG_PARTIDO"`               // Legenda do partido do candidato.
+	NomePartido       string `csv:"NM_PARTIDO"`               // Nome do partido do candidato.
+	NomeColigacao     string `csv:"NM_COLIGACAO"`             // Nome da coligação a qual o candidato pertence.
+	PartidosColigacao string `csv:"DS_COMPOSICAO_COLIGACAO"`  // Partidos pertencentes à coligação do candidato.
+	DeclarouBens      string `csv:"ST_DECLARAR_BENS"`         // Flag que informa se o candidato declarou seus bens na eleição.s
+	Situacao          string `csv:"DS_SIT_TOT_TURNO"`         // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
+	Candidato
 }
 
 var (
@@ -173,17 +171,13 @@ func executeForLocal(buf []byte, h *Handler) error {
 			r.Comma = ';'
 			return r
 		})
-		var candidates []descritor.Candidatura
+		var candidates []*Candidatura
 		if err := gocsv.UnmarshalFile(file, &candidates); err != nil {
 			return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 		}
-		// _, err = filterCandidates(candidates)
-		// if err != nil {
-		// 	return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
-		// }
-		for _, c := range candidates {
-			fmt.Println("LEG ", c.Legislatura)
-			fmt.Println("Cargo ", c.Cargo)
+		_, err = filterCandidates(candidates)
+		if err != nil {
+			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
 		}
 		// TODO save candidates into a local file
 	}
@@ -194,7 +188,7 @@ func executeForLocal(buf []byte, h *Handler) error {
 // struct *descritor.Candidatura where the key is the canidate CPF.
 // To handle the duplicated canidate data lines is used the canidadate
 // CPF as search key
-func filterCandidates(candidates []*descritor.Candidatura) (map[string]*descritor.Candidatura, error) {
+func filterCandidates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
 	return candidatesMap, nil
 }
