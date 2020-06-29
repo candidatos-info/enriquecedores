@@ -140,29 +140,18 @@ func (h *Handler) post() {
 		return
 	}
 	h.Status = status.Processing
-	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
-		// TODO add GCS implementation
-	} else {
-		if err := executeForLocal(buf, h); err != nil {
-			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
-			return
-		}
-	}
-	if err = os.RemoveAll(unzipDestination); err != nil {
-		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
-	}
-}
-
-func executeForLocal(buf []byte, h *Handler) error {
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
-		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
+		handleError(fmt.Sprintf("falha ao descomprimir arquivos baixados, erro %q", err), h)
+		return
 	}
+	var candidates []*descritor.Candidatura
 	for _, filePath := range downloadedFiles {
 		// TODO parallelize it using goroutines
 		file, err := os.Open(filePath)
 		if err != nil {
-			return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
+			handleError(fmt.Sprintf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err), h)
+			return
 		}
 		defer file.Close()
 		gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
@@ -171,16 +160,35 @@ func executeForLocal(buf []byte, h *Handler) error {
 			r.Comma = ';'
 			return r
 		})
-		var candidates []*Candidatura
-		if err := gocsv.UnmarshalFile(file, &candidates); err != nil {
-			return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
+		var c []*Candidatura
+		if err := gocsv.UnmarshalFile(file, &c); err != nil {
+			handleError(fmt.Sprintf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err), h)
+			return
 		}
-		_, err = removeDuplicates(candidates)
+		filteredCandidatures, err := removeDuplicates(c)
 		if err != nil {
-			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
+			handleError(fmt.Sprintf("falha ao remover candidaturas duplicadas, erro %q", err), h)
+			return
 		}
-		// TODO save candidates into a local file
+		for _, fc := range filteredCandidatures {
+			candidates = append(candidates, fc)
+		}
 	}
+	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
+		// TODO add GCS implementation
+	} else {
+		if err := saveCandidatesLocal(candidates, h.CandidaturesPath); err != nil {
+			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas localmente, erro: %q", err), h)
+			return
+		}
+	}
+	if err = os.RemoveAll(unzipDestination); err != nil {
+		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
+	}
+}
+
+// save candidatures localy on the given path
+func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
 	return nil
 }
 
