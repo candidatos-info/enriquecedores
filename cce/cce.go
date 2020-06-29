@@ -62,9 +62,9 @@ type Candidatura struct {
 
 var (
 	rolesMap = map[string]descritor.Cargo{
-		"VEREADOR":      "LM",
-		"VICE-PREFEITO": "EM",
-		"PREFEITO":      "EM",
+		"VEREADOR":      "LM",  // Legislativo Municipal
+		"VICE-PREFEITO": "VEM", // Vice Executivo Municipal
+		"PREFEITO":      "EM",  // Executivo Municipal
 	}
 
 	declaredPossessions = map[string]bool{
@@ -175,7 +175,7 @@ func executeForLocal(buf []byte, h *Handler) error {
 		if err := gocsv.UnmarshalFile(file, &candidates); err != nil {
 			return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 		}
-		_, err = filterCandidates(candidates)
+		_, err = removeDuplicates(candidates)
 		if err != nil {
 			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
 		}
@@ -188,7 +188,7 @@ func executeForLocal(buf []byte, h *Handler) error {
 // struct *descritor.Candidatura where the key is the candidate CPF.
 // To handle the duplicated canidate data lines is used the candidate
 // CPF as search key
-func filterCandidates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
+func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
 	for _, c := range candidates {
 		foundCandidate := candidatesMap[c.CPF]
