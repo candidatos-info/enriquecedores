@@ -13,45 +13,52 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/candidatos-info/descritor"
 	"github.com/candidatos-info/enriquecedores/status"
+	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo"
 )
 
-const (
-	electionYear              = 2  // election year on the csv file is at column 2
-	role                      = 14 // candidate role on the csv file is at column 14
-	state                     = 10 // state on csv is at column 10
-	city                      = 12 // city on csv is at column 12
-	ballotNumber              = 16 // ballor number on the csv file is at column 16
-	ballotName                = 18 // ballot name on the csv file is at column 18
-	ability                   = 23 // candidature ability on csv file is at column 23
-	deffering                 = 25 // candidate deffering on csv is at column 25
-	candidatureGroup          = 26 // candidature group on csv is at column 26
-	partyNumber               = 27 // party number on csv is at column 27
-	partyLabel                = 28 // party label on csv is at column 28
-	partyName                 = 29 // party name on csv is at column 29
-	partyGroupName            = 31 // party group name on csv is at column 31
-	groupParties              = 32 // group parties on csv is at column 32
-	didDeclaredPossessions    = 55 // that column that indicates if candidate has declared possesions is 55
-	finalSituation            = 53 // the candidate final situation at end of election round
-	candidateState            = 35 // candidate state on csv is at column 35
-	candidateCity             = 37 // candidate city on csv is at column 36
-	candidateBirth            = 38 // candidate birth on csv is at column 38
-	candidateVotingID         = 40 // candidate voting id on csv is at column 40
-	candidateGender           = 42 // candidate gender is at column 42
-	candidateInstructionLevel = 44 // candidate instruction level is at column 44
-	candidateCivilState       = 46 // candidate civil state is at column 46
-	candidateRace             = 48 // candidate race is at column 48
-	candidateOccupation       = 50 // candidate occupation is at column 50
-	candidateName             = 17 // candidate name on the csv file is at column 17
-	candidateCPF              = 20 // canidate cpf on csv is at column 20
-	candidateEmail            = 21 // candidate email on csv is at column 21
-)
+// Candidato representa os dados de um candidato
+type Candidato struct {
+	UF              string    `json:"uf_origem" csv:"uf_origem"`               // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
+	Municipio       string    `json:"municipio_origem" csv:"municipio_origem"` // Município de nascimento do candidato.
+	Nascimento      time.Time `json:"nascimento" csv:"nascimento"`             // Data de nascimento do candidato.
+	TituloEleitoral string    `json:"titulo_eleitoral" csv:"titulo_eleitoral"` // Titulo eleitoral do candidato.
+	Genero          string    `json:"genero" csv:"genero"`                     // Gênero do candidato (MASCULINO ou FEMININO).
+	GrauInstrucao   string    `json:"grau_instrucao" csv:"grau_instrucao"`     // Grau de instrução do candidato.
+	EstadoCivil     string    `json:"estado_civil" csv:"estado_civil"`         // Estado civil do candidato.
+	Raca            string    `json:"raca" csv:"raca"`                         // Raça do candidato (como BRANCA ou PARDA).
+	Ocupacao        string    `json:"ocupacao" csv:"ocupacao"`                 // Ocupação do candidato (como COMERCIANTE e ARTISTA por exemplo).
+	CPF             string    `json:"cpf" csv:"cpf"`                           // CPF do candidato.
+	Nome            string    `json:"nome" csv:"nome"`                         // Nome de pessoa física do candidato.
+	Email           string    `json:"email" csv:"email"`                       // Email do candidato.
+}
+
+// Candidatura representa uma
+type Candidatura struct {
+	Legislatura           int    `json:"leg" csv:"ANO_ELEICAO"`                       // Ano eleitoral em que a candidatura foi homologada.
+	Cargo                 string `json:"cargo" csv:"DS_CARGO"`                        // Cargo sendo pleiteado pela candidatura.
+	UF                    string `json:"uf" csv:"SG_UF"`                              // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
+	Municipio             string `json:"municipio" csv:"municipio"`                   // Município que ocorreu a eleição.
+	NumeroUrna            int    `json:"numero_urna" csv:"numero_urna"`               // Número do candidato na urna.
+	NomeUrna              string `json:"nome_urna" csv:"nome_urna"`                   // Nome do candidato na urna.
+	Aptidao               string `json:"aptidao" csv:"aptidao"`                       // Aptidao da candidatura (podendo ser APTO ou INAPTO).
+	Deferimento           string `json:"deferimento" csv:"deferimento"`               // Situação do candidato (pondendo ser DEFERIDO ou INDEFERIDO).
+	TipoAgremiacao        string `json:"tipo_agremiacao" csv:"tipo_agremiacao"`       // Indica o tipo de agremiação do candidato (podendo ser PARTIDO ISOLADO ou AGREMIAÇÃO).
+	NumeroPartido         int    `json:"numero_partio" csv:"numero_partido"`          // Número do partido do candidato.
+	LegendaPartido        string `json:"legenda_partido" csv:"legenda_partido"`       // Legenda do partido do candidato.
+	NomePartido           string `json:"nome_partido" csv:"nome_partido"`             // Nome do partido do candidato.
+	NomeColigacao         string `json:"nome_coligacao" csv:"nome_coligacao"`         // Nome da coligação a qual o candidato pertence.
+	PartidosColigacao     string `json:"partidos_coligacao" csv:"partidos_coligacao"` // Partidos pertencentes à coligação do candidato.
+	DeclarouBens          bool   `json:"declarou_bens" csv:"declarou_bens"`           // Flag que informa se o candidato declarou seus bens na eleição.s
+	SituacaoPrimeiroTurno string `json:"situacao_1turno" csv:"situacao_1turno"`       // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
+	SituacaoSegundoTurno  string `json:"situacao_2turno" csv:"situacao_2turno"`       // Campo que informa como o candidato terminou o segundo turno da eleição, nesse caso só pondendo ficar como ELEITO ou NÃO ELEITO.
+	Candidato             `json:"candidato"`
+}
 
 var (
 	rolesMap = map[string]descritor.Cargo{
@@ -127,7 +134,6 @@ func (h *Handler) post() {
 		handleError(fmt.Sprintf("falha ao ler os bytes do arquivo %s, erro: %q", hashFile.Name(), err), h)
 		return
 	}
-	fmt.Println("INDO COMPARAR ", ha)
 	if ha == string(hashFileBytes) {
 		log.Printf("arquivo baixado é o mesmo (possui o mesmo hash %s)\n", ha)
 		h.Status = status.Idle
@@ -150,6 +156,7 @@ func (h *Handler) post() {
 
 func executeForLocal(buf []byte, h *Handler) error {
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
+	fmt.Println(downloadedFiles)
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
 	}
@@ -160,14 +167,24 @@ func executeForLocal(buf []byte, h *Handler) error {
 			return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
 		}
 		defer file.Close()
-		csvReader := csv.NewReader(file)
-		csvReader.Comma = ';'
-		csvReader.LazyQuotes = true
-		candidates, err := getCandidates(csvReader, file.Name())
-		if err != nil {
-			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
+		gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
+			r := csv.NewReader(in)
+			r.LazyQuotes = true
+			r.Comma = ';'
+			return r
+		})
+		var candidates []descritor.Candidatura
+		if err := gocsv.UnmarshalFile(file, &candidates); err != nil {
+			return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 		}
-		fmt.Println(candidates)
+		// _, err = filterCandidates(candidates)
+		// if err != nil {
+		// 	return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
+		// }
+		for _, c := range candidates {
+			fmt.Println("LEG ", c.Legislatura)
+			fmt.Println("Cargo ", c.Cargo)
+		}
 		// TODO save candidates into a local file
 	}
 	return nil
@@ -177,100 +194,9 @@ func executeForLocal(buf []byte, h *Handler) error {
 // struct *descritor.Candidatura where the key is the canidate CPF.
 // To handle the duplicated canidate data lines is used the canidadate
 // CPF as search key
-func getCandidates(reader *csv.Reader, fileName string) (map[string]*descritor.Candidatura, error) {
+func filterCandidates(candidates []*descritor.Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
-	currentLine := 0
-	for {
-		line, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, fmt.Errorf("falha ao ler arquivo csv %s, erro %q", fileName, err)
-		}
-		if currentLine > 0 {
-			currentCPF := line[candidateCPF]
-			foundCandidate := candidatesMap[currentCPF]
-			// if candidate was not found, create it and add it to candidates map
-			if foundCandidate == nil {
-				candidate, err := createCandidatureFromCSVLine(line)
-				if err != nil {
-					return nil, fmt.Errorf("falha ao criar struct de candidatura para arquivo %s na linha %d, erro %q", fileName, currentLine, err)
-				}
-				candidatesMap[currentCPF] = candidate
-			} else { // if candidates is alredy in canidates map, update the first or second round situation
-				legislatura, err := strconv.Atoi(line[electionYear])
-				if err != nil {
-					return nil, fmt.Errorf("falha ao extrair o ano de legislatura, erro %q", err)
-				}
-				if legislatura == 1 {
-					foundCandidate.SituacaoPrimeiroTurno = line[finalSituation]
-				} else {
-					foundCandidate.SituacaoSegundoTurno = line[finalSituation]
-				}
-			}
-		}
-		currentLine++
-	}
 	return candidatesMap, nil
-}
-
-// extracts data from csv columns, treat them and
-// add to strurct descritor.Candidatura. For simplicity reasons
-// is being used portuguese language for the attribute names
-func createCandidatureFromCSVLine(line []string) (*descritor.Candidatura, error) {
-	legislatura, err := strconv.Atoi(line[electionYear])
-	if err != nil {
-		return nil, fmt.Errorf("falha ao extrair o ano de legislatura, erro %q", err)
-	}
-	numeroUrna, err := strconv.Atoi(line[ballotNumber])
-	if err != nil {
-		return nil, fmt.Errorf("falha ao extrair o número de urna, erro %q", err)
-	}
-	numeroPartido, err := strconv.Atoi(line[partyNumber])
-	if err != nil {
-		return nil, fmt.Errorf("falha ao extrair número do partido, erro %q", err)
-	}
-	nascimentoCandidato, err := time.Parse("02/01/2006", line[candidateBirth])
-	if err != nil {
-		return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato, erro %q", err)
-	}
-	candidatura := &descritor.Candidatura{
-		Legislatura:       legislatura,
-		Cargo:             rolesMap[line[role]],
-		UF:                line[state],
-		Municipio:         line[city],
-		NumeroUrna:        numeroUrna,
-		NomeUrna:          line[ballotName],
-		Aptidao:           line[ability],
-		Deferimento:       line[deffering],
-		TipoAgremiacao:    line[candidatureGroup],
-		NumeroPartido:     numeroPartido,
-		LegendaPartido:    line[partyLabel],
-		NomePartido:       line[partyName],
-		NomeColigacao:     line[partyGroupName],
-		PartidosColigacao: line[groupParties],
-		DeclarouBens:      declaredPossessions[line[didDeclaredPossessions]],
-		Candidato: descritor.Candidato{
-			UF:              line[candidateState],
-			Municipio:       line[candidateCity],
-			Nascimento:      nascimentoCandidato,
-			TituloEleitoral: line[candidateVotingID],
-			Genero:          line[candidateGender],
-			GrauInstrucao:   line[candidateInstructionLevel],
-			EstadoCivil:     line[candidateCivilState],
-			Raca:            line[candidateRace],
-			Ocupacao:        line[candidateOccupation],
-			CPF:             line[candidateCPF],
-			Nome:            line[candidateName],
-			Email:           line[candidateEmail],
-		},
-	}
-	if candidatura.Legislatura == 1 {
-		candidatura.SituacaoPrimeiroTurno = line[finalSituation]
-	} else {
-		candidatura.SituacaoSegundoTurno = line[finalSituation]
-	}
-	return candidatura, nil
 }
 
 // It unzips downloaded .zip on a temporary directory
