@@ -187,7 +187,12 @@ func executeForLocal(buf []byte, h *Handler) error {
 // it iterates through the candidates list and returns a map of
 // struct *descritor.Candidatura where the key is the candidate CPF.
 // To handle the duplicated canidate data lines is used the candidate
-// CPF as search key
+// CPF as search key.
+// This is necessary due to the fact that TSE CSV duplicate candidate's
+// data if it goes to the election second round, changing only two columns:
+// the election round (NR_TURNO) and the candidature situation (DS_SIT_TOT_TURNO).
+// This function takes care of it by collecting the candidate only once and
+// registering if it has gone or not to election second round.
 func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
 	for _, c := range candidates {
