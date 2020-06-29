@@ -117,10 +117,28 @@ func (h *Handler) post() {
 		return
 	}
 	h.UnzippedFilesDir = unzipDestination
+	hashFile, err := resolveHashFile(h.SourceURL)
+	if err != nil {
+		handleError(fmt.Sprintf("falha ao resolver arquivo de hash, erro %q", err), h)
+		return
+	}
+	hashFileBytes, err := ioutil.ReadAll(hashFile)
+	if err != nil {
+		handleError(fmt.Sprintf("falha ao ler os bytes do arquivo %s, erro: %q", hashFile.Name(), err), h)
+		return
+	}
+	fmt.Println("INDO COMPARAR ", ha)
+	if ha == string(hashFileBytes) {
+		log.Printf("arquivo baixado é o mesmo (possui o mesmo hash %s)\n", ha)
+		h.Status = status.Idle
+		return
+	}
+	fmt.Println("passou")
+	h.Status = status.Processing
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		if err := executeForLocal(ha, buf, h); err != nil {
+		if err := executeForLocal(buf, h); err != nil {
 			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
 			return
 		}
@@ -130,20 +148,7 @@ func (h *Handler) post() {
 	}
 }
 
-func executeForLocal(hash string, buf []byte, h *Handler) error {
-	hashFile, err := resolveHashFile(h.SourceURL)
-	if err != nil {
-		return err
-	}
-	hashFileBytes, err := ioutil.ReadAll(hashFile)
-	if err != nil {
-		return fmt.Errorf("falha ao ler os bytes do arquivo %s, erro: %q", hashFile.Name(), err)
-	}
-	if hash == string(hashFileBytes) {
-		log.Printf("arquivo baixado é o mesmo (possui o mesmo hash %s)\n", hash)
-		return nil
-	}
-	h.Status = status.Processing
+func executeForLocal(buf []byte, h *Handler) error {
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
