@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/candidatos-info/descritor"
 	"github.com/candidatos-info/enriquecedores/status"
@@ -55,6 +56,7 @@ type Candidatura struct {
 	PartidosColigacao string `csv:"DS_COMPOSICAO_COLIGACAO"`  // Partidos pertencentes à coligação do candidato.
 	DeclarouBens      string `csv:"ST_DECLARAR_BENS"`         // Flag que informa se o candidato declarou seus bens na eleição.s
 	Situacao          string `csv:"DS_SIT_TOT_TURNO"`         // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
+	Turno             int    `csv:"NR_TURNO"`                 // Campo que informa número do turno
 	Candidato
 }
 
@@ -137,7 +139,6 @@ func (h *Handler) post() {
 		h.Status = status.Idle
 		return
 	}
-	fmt.Println("passou")
 	h.Status = status.Processing
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
@@ -148,13 +149,12 @@ func (h *Handler) post() {
 		}
 	}
 	if err = os.RemoveAll(unzipDestination); err != nil {
-		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado, erro %q", err), h)
+		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
 }
 
 func executeForLocal(buf []byte, h *Handler) error {
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
-	fmt.Println(downloadedFiles)
 	if err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
 	}
@@ -184,12 +184,63 @@ func executeForLocal(buf []byte, h *Handler) error {
 	return nil
 }
 
-// it iterates through csv lines and returns a map of
-// struct *descritor.Candidatura where the key is the canidate CPF.
-// To handle the duplicated canidate data lines is used the canidadate
+// it iterates through the candidates list and returns a map of
+// struct *descritor.Candidatura where the key is the candidate CPF.
+// To handle the duplicated canidate data lines is used the candidate
 // CPF as search key
 func filterCandidates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
+	for _, c := range candidates {
+		foundCandidate := candidatesMap[c.CPF]
+		if foundCandidate == nil { // candidate not present on map, add it
+			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
+			if err != nil {
+				return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato %s para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+			}
+			newCandidate := &descritor.Candidatura{
+				Legislatura:       c.Legislatura,
+				Cargo:             rolesMap[c.Cargo],
+				UF:                c.UF,
+				Municipio:         c.Municipio,
+				NomeUrna:          c.NomeUrna,
+				Aptidao:           c.Aptidao,
+				Deferimento:       c.Deferimento,
+				TipoAgremiacao:    c.TipoAgremiacao,
+				NumeroPartido:     c.NumeroUrna,
+				LegendaPartido:    c.LegendaPartido,
+				NomePartido:       c.NomePartido,
+				NomeColigacao:     c.NomeColigacao,
+				PartidosColigacao: c.PartidosColigacao,
+				DeclarouBens:      declaredPossessions[c.DeclarouBens],
+				Candidato: descritor.Candidato{
+					UF:              c.Candidato.UF,
+					Municipio:       c.Candidato.Municipio,
+					Nascimento:      nascimentoCandidato,
+					TituloEleitoral: c.Candidato.TituloEleitoral,
+					Genero:          c.Candidato.Genero,
+					GrauInstrucao:   c.Candidato.GrauInstrucao,
+					EstadoCivil:     c.Candidato.EstadoCivil,
+					Raca:            c.Candidato.Raca,
+					Ocupacao:        c.Candidato.Ocupacao,
+					CPF:             c.Candidato.CPF,
+					Nome:            c.Candidato.Nome,
+					Email:           c.Candidato.Email,
+				},
+			}
+			if c.Turno == 1 {
+				newCandidate.SituacaoPrimeiroTurno = c.Situacao
+			} else {
+				newCandidate.SituacaoSegundoTurno = c.Situacao
+			}
+			candidatesMap[c.CPF] = newCandidate
+		} else { // candidate already on map (maybe election second round)
+			if c.Turno == 1 {
+				foundCandidate.SituacaoPrimeiroTurno = c.Situacao
+			} else {
+				foundCandidate.SituacaoSegundoTurno = c.Situacao
+			}
+		}
+	}
 	return candidatesMap, nil
 }
 
