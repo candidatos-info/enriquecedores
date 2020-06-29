@@ -44,6 +44,87 @@ func TestPost(t *testing.T) {
 	}
 }
 
+func TestRemoveDuplicates(t *testing.T) {
+	candidates := []*Candidatura{
+		&Candidatura{
+			Legislatura:       2016,
+			Cargo:             "PREFEITO",
+			UF:                "AL",
+			Municipio:         "Maceio",
+			NumeroUrna:        505,
+			NomeUrna:          "Lelinho",
+			Aptidao:           "APTO",
+			Deferimento:       "DEFERIDO",
+			TipoAgremiacao:    "AGREMIAÇÃO",
+			NumeroPartido:     5,
+			LegendaPartido:    "AM",
+			NomePartido:       "Arctic Monkeys",
+			NomeColigacao:     "Arabella",
+			PartidosColigacao: "Beatles / AM / Zeppelin",
+			DeclarouBens:      "S",
+			Situacao:          "SEGUNDO-TURNO",
+			Turno:             1,
+			Candidato: Candidato{
+				CPF:        "07496470430",
+				Nascimento: "29/11/1997",
+			},
+		},
+		&Candidatura{
+			Legislatura:       2016,
+			Cargo:             "PREFEITO",
+			UF:                "AL",
+			Municipio:         "Maceio",
+			NumeroUrna:        505,
+			NomeUrna:          "Lelinho",
+			Aptidao:           "APTO",
+			Deferimento:       "DEFERIDO",
+			TipoAgremiacao:    "AGREMIAÇÃO",
+			NumeroPartido:     5,
+			LegendaPartido:    "AM",
+			NomePartido:       "Arctic Monkeys",
+			NomeColigacao:     "Arabella",
+			PartidosColigacao: "Beatles / AM / Zeppelin",
+			DeclarouBens:      "S",
+			Situacao:          "ELEITO",
+			Turno:             2,
+			Candidato: Candidato{
+				CPF:        "07496470430",
+				Nascimento: "29/11/1997",
+			},
+		},
+		&Candidatura{
+			Legislatura:       2016,
+			Cargo:             "PREFEITO",
+			UF:                "AL",
+			Municipio:         "Capela",
+			NumeroUrna:        45666,
+			NomeUrna:          "Marcelinho",
+			Aptidao:           "APTO",
+			Deferimento:       "DEFERIDO",
+			TipoAgremiacao:    "AGREMIAÇÃO",
+			NumeroPartido:     45,
+			LegendaPartido:    "AM",
+			NomePartido:       "Arctic Monkeys",
+			NomeColigacao:     "Arabella",
+			PartidosColigacao: "Beatles / AM / Zeppelin",
+			DeclarouBens:      "S",
+			Situacao:          "ELEITO",
+			Turno:             1,
+			Candidato: Candidato{
+				CPF:        "07496470431",
+				Nascimento: "29/11/1998",
+			},
+		},
+	}
+	c, err := removeDuplicates(candidates)
+	if err != nil {
+		t.Errorf("expected to have err nil when removing duplicated, got %q", err)
+	}
+	if len(c) != 2 {
+		t.Errorf("expected to have only two candidates after removing duplicates, got %d", len(c))
+	}
+}
+
 func TestInvalidPostRequest(t *testing.T) {
 	ts := fakeServer(t)
 	defer ts.Close()
