@@ -149,6 +149,10 @@ func (h *Handler) post() {
 	var candidates []*descritor.Candidatura
 	for _, filePath := range downloadedFiles {
 		// TODO parallelize it using goroutines
+		fmt.Println("PATH ", filePath)
+		if strings.Contains(filePath, "consulta_cand_2016_BRASIL.csv") {
+			continue
+		}
 		file, err := os.Open(filePath)
 		if err != nil {
 			handleError(fmt.Sprintf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err), h)
@@ -210,7 +214,7 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 func zipFile(bytesToWrite []byte, zipName, fileName string) error {
 	outFile, err := os.Create(zipName)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("falha ao criar arquivo zip %s, erro %q", zipName, err)
 	}
 	defer outFile.Close()
 	w := zip.NewWriter(outFile)
@@ -239,9 +243,13 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 	for _, c := range candidates {
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
-			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
-			if err != nil {
-				return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato [%s] para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+			var candidateBirth time.Time
+			if c.Candidato.Nascimento != "" {
+				candidateBirth, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
+				if err != nil {
+					return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato [%s] para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+				}
+				_ = candidateBirth
 			}
 			newCandidate := &descritor.Candidatura{
 				Legislatura:       c.Legislatura,
@@ -262,7 +270,7 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 				Candidato: descritor.Candidato{
 					UF:              c.Candidato.UF,
 					Municipio:       c.Candidato.Municipio,
-					Nascimento:      nascimentoCandidato,
+					Nascimento:      candidateBirth,
 					TituloEleitoral: c.Candidato.TituloEleitoral,
 					Genero:          c.Candidato.Genero,
 					GrauInstrucao:   c.Candidato.GrauInstrucao,
