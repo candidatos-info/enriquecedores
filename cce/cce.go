@@ -192,12 +192,18 @@ func (h *Handler) post() {
 // save candidatures localy on the given path
 func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
 	for _, c := range candidates {
-		path := fmt.Sprintf("%s_%d", c.UF, c.NumeroUrna) // TODO add year
-		tempFile, err := ioutil.TempFile("", path)
+		path := fmt.Sprintf("%s_%d.json", c.UF, c.NumeroUrna) // TODO add year
+		// tempFile, err := ioutil.TempFile("", path)
+		// if err != nil {
+		// 	return fmt.Errorf("falha ao criar arquivo temporário")
+		// }
+		// defer os.Remove(tempFile.Name())
+		tempFile, err := os.Create(path)
 		if err != nil {
-			return fmt.Errorf("falha ao criar arquivo temporário")
+			return fmt.Errorf("falha ao criar arquivo de candidatura %s, err %q", path, err)
 		}
-		defer os.Remove(tempFile.Name())
+		defer tempFile.Close()
+		fmt.Println("criado path ", path)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -205,33 +211,42 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 		if _, err := tempFile.WriteString(string(candidatureBytes)); err != nil {
 			return fmt.Errorf("falha ao escrever struct como string em arquivo temporário %s, erro %q", tempFile.Name(), err)
 		}
-		// here
-		zipPath := fmt.Sprintf("%s.zip", path)
-		zipFile, err := os.Create(zipPath)
-		if err != nil {
-			log.Fatal("CU 1")
+		if err = zipFile(fmt.Sprintf("%s.zip", path), tempFile); err != nil {
+			return fmt.Errorf("falha ao comprimir arquivo de candidatura, erro %q", err)
 		}
-		defer zipFile.Close()
-		zipWriter := zip.NewWriter(zipFile)
-		defer zipWriter.Close()
-		info, err := tempFile.Stat()
-		if err != nil {
-			log.Fatal("BOsta ")
-		}
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			log.Fatal("rola")
-		}
-		header.Name = "CU"
-		header.Method = zip.Deflate
-		writer, err := zipWriter.CreateHeader(header)
-		if err != nil {
-			log.Fatal("merda")
-		}
-		_, err = io.Copy(writer, tempFile)
-		if err != nil {
-			log.Fatal("OLHA A MERDA ", err)
-		}
+	}
+	return nil
+}
+
+func zipFile(zipName string, fileToZip *os.File) error {
+	// fileToZip, err := os.Open(pathToZip)
+	// if err != nil {
+	// 	return fmt.Errorf("falha ao abrir arquivo para ser zipado %s, erro %q", pathToZip, err)
+	// }
+	// defer fileToZip.Close()
+	zipFile, err := os.Create(zipName)
+	if err != nil {
+		return fmt.Errorf("falha ao criar arquivo zip de nome %s, erro %q", zipName, err)
+	}
+	defer zipFile.Close()
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+	info, err := fileToZip.Stat()
+	if err != nil {
+		return fmt.Errorf("falha ao pegar informação de arquivo %s, erro %q", fileToZip.Name(), err)
+	}
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return fmt.Errorf("falha ao pegar cabeçalho de informaçōes de arquivo para comprimir %s, erro %q", fileToZip.Name(), err)
+	}
+	header.Name = fileToZip.Name()
+	header.Method = zip.Deflate
+	writter, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return fmt.Errorf("falha ao criar cabeçao para arquivo zip, erro %q", err)
+	}
+	if _, err = io.Copy(writter, fileToZip); err != nil {
+		return fmt.Errorf("falha ao copiar conteúdo de arquivo csv %s para arquivo zip, erro %q", fileToZip.Name(), err)
 	}
 	return nil
 }
@@ -248,7 +263,6 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
 	for _, c := range candidates {
-		fmt.Println("PRIQUITO ", c.NumeroUrna)
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
 			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
