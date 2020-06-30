@@ -193,6 +193,7 @@ func (h *Handler) post() {
 func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
 	for _, c := range candidates {
 		candidaturePath := fmt.Sprintf("%s_%d.json", c.UF, c.NumeroUrna) // TODO add year (think how to do it)
+		fmt.Println("PATH ", candidaturePath)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -240,7 +241,7 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 		if foundCandidate == nil { // candidate not present on map, add it
 			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
 			if err != nil {
-				return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato %s para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+				return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato [%s] para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
 			}
 			newCandidate := &descritor.Candidatura{
 				Legislatura:       c.Legislatura,
