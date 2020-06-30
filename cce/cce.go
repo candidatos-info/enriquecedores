@@ -202,11 +202,28 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
 		}
-		if _, err := tempFile.WriteString(string(candidatureBytes)); err != nil {
-			return fmt.Errorf("falha ao escrever struct como string em arquivo temporário %s, erro %q", tempFile.Name(), err)
+		// if _, err := tempFile.WriteString(string(candidatureBytes)); err != nil {
+		// 	return fmt.Errorf("falha ao escrever struct como string em arquivo temporário %s, erro %q", tempFile.Name(), err)
+		// }
+		// if err = zipFile(fmt.Sprintf("%s/%s.zip", pathToSave, path), tempFile); err != nil {
+		// 	return fmt.Errorf("falha ao comprimir arquivo de candidatura, erro %q", err)
+		// }
+		outFile, err := os.Create(fmt.Sprintf("%s/%s.zip", pathToSave, path))
+		if err != nil {
+			log.Fatal(err)
 		}
-		if err = zipFile(fmt.Sprintf("%s/%s.zip", pathToSave, path), tempFile); err != nil {
-			return fmt.Errorf("falha ao comprimir arquivo de candidatura, erro %q", err)
+		defer outFile.Close()
+		w := zip.NewWriter(outFile)
+		defer w.Close()
+		f, err := w.Create(path)
+		if err != nil {
+			fmt.Println("falha ao criar o zip")
+			return fmt.Errorf("falha ao criar o zip, err %q", err)
+		}
+		_, err = f.Write(candidatureBytes)
+		if err != nil {
+			fmt.Println("deu pau escrevendo")
+			return fmt.Errorf("falha ao escrever o zip, err %q", err)
 		}
 	}
 	return nil
