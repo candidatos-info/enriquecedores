@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -140,29 +141,22 @@ func (h *Handler) post() {
 		return
 	}
 	h.Status = status.Processing
-	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
-		// TODO add GCS implementation
-	} else {
-		if err := executeForLocal(buf, h); err != nil {
-			handleError(fmt.Sprintf("falha executar processamento local, erro: %q", err), h)
-			return
-		}
-	}
-	if err = os.RemoveAll(unzipDestination); err != nil {
-		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
-	}
-}
-
-func executeForLocal(buf []byte, h *Handler) error {
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
-		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
+		handleError(fmt.Sprintf("falha ao descomprimir arquivos baixados, erro %q", err), h)
+		return
 	}
+	var candidates []*descritor.Candidatura
 	for _, filePath := range downloadedFiles {
 		// TODO parallelize it using goroutines
+		fmt.Println("PATH ", filePath)
+		if strings.Contains(filePath, "consulta_cand_2016_BRASIL.csv") {
+			continue
+		}
 		file, err := os.Open(filePath)
 		if err != nil {
-			return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
+			handleError(fmt.Sprintf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err), h)
+			return
 		}
 		defer file.Close()
 		gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
@@ -171,15 +165,66 @@ func executeForLocal(buf []byte, h *Handler) error {
 			r.Comma = ';'
 			return r
 		})
-		var candidates []*Candidatura
-		if err := gocsv.UnmarshalFile(file, &candidates); err != nil {
-			return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
+		var c []*Candidatura
+		if err := gocsv.UnmarshalFile(file, &c); err != nil {
+			handleError(fmt.Sprintf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err), h)
+			return
 		}
-		_, err = removeDuplicates(candidates)
+		filteredCandidatures, err := removeDuplicates(c)
 		if err != nil {
-			return fmt.Errorf("falha ao criar lista de candidaturas, erro %q", err)
+			handleError(fmt.Sprintf("falha ao remover candidaturas duplicadas, erro %q", err), h)
+			return
 		}
-		// TODO save candidates into a local file
+		for _, fc := range filteredCandidatures {
+			candidates = append(candidates, fc)
+		}
+	}
+	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
+		// TODO add GCS implementation
+	} else {
+		if err := saveCandidatesLocal(candidates, h.CandidaturesPath); err != nil {
+			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas localmente, erro: %q", err), h)
+			return
+		}
+	}
+	if err = os.RemoveAll(unzipDestination); err != nil {
+		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
+	}
+	h.Status = status.Idle
+}
+
+// save candidatures localy on the given path
+func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
+	for _, c := range candidates {
+		candidaturePath := fmt.Sprintf("%s_%d.json", c.UF, c.NumeroUrna) // TODO add year (think how to do it)
+		fmt.Println("PATH ", candidaturePath)
+		candidatureBytes, err := json.Marshal(c)
+		if err != nil {
+			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
+		}
+		if err = zipFile(candidatureBytes, fmt.Sprintf("%s/%s.zip", pathToSave, candidaturePath), candidaturePath); err != nil {
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura")
+		}
+	}
+	return nil
+}
+
+// it gets an array of bytes to write into a file called fileName that
+// will be compressed into a zip called zipName
+func zipFile(bytesToWrite []byte, zipName, fileName string) error {
+	outFile, err := os.Create(zipName)
+	if err != nil {
+		return fmt.Errorf("falha ao criar arquivo zip %s, erro %q", zipName, err)
+	}
+	defer outFile.Close()
+	w := zip.NewWriter(outFile)
+	defer w.Close()
+	f, err := w.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("falha ao criar o zip, err %q", err)
+	}
+	if _, err = f.Write(bytesToWrite); err != nil {
+		return fmt.Errorf("falha ao escrever o zip, err %q", err)
 	}
 	return nil
 }
@@ -198,9 +243,13 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 	for _, c := range candidates {
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
-			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
-			if err != nil {
-				return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato %s para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+			var candidateBirth time.Time
+			if c.Candidato.Nascimento != "" {
+				candidateBirth, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
+				if err != nil {
+					return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato [%s] para o formato 02/01/2006, erro %q", c.Candidato.Nascimento, err)
+				}
+				_ = candidateBirth
 			}
 			newCandidate := &descritor.Candidatura{
 				Legislatura:       c.Legislatura,
@@ -211,7 +260,8 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 				Aptidao:           c.Aptidao,
 				Deferimento:       c.Deferimento,
 				TipoAgremiacao:    c.TipoAgremiacao,
-				NumeroPartido:     c.NumeroUrna,
+				NumeroPartido:     c.NumeroPartido,
+				NumeroUrna:        c.NumeroUrna,
 				LegendaPartido:    c.LegendaPartido,
 				NomePartido:       c.NomePartido,
 				NomeColigacao:     c.NomeColigacao,
@@ -220,7 +270,7 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 				Candidato: descritor.Candidato{
 					UF:              c.Candidato.UF,
 					Municipio:       c.Candidato.Municipio,
-					Nascimento:      nascimentoCandidato,
+					Nascimento:      candidateBirth,
 					TituloEleitoral: c.Candidato.TituloEleitoral,
 					Genero:          c.Candidato.Genero,
 					GrauInstrucao:   c.Candidato.GrauInstrucao,

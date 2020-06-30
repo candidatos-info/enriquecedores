@@ -7,11 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
-
-	"github.com/candidatos-info/enriquecedores/status"
-	"github.com/labstack/echo"
 )
 
 const (
@@ -35,12 +31,48 @@ func TestPost(t *testing.T) {
 	}
 	year := 2016
 	sourceURL := fmt.Sprintf("file://%s/files_%d.zip", path, year)
-	cceHandler := New(sourceURL, ".")
+	cceHandler := New(sourceURL, "baseDir")
 	cceHandler.post()
 	expectedGeneratedFileName := fmt.Sprintf("cce_files_%d.zip", year)
 	_, err = ioutil.ReadFile(expectedGeneratedFileName)
 	if err != nil {
 		t.Errorf("failed to read the expected file, got err %q", err)
+	}
+	err = os.Remove(expectedGeneratedFileName)
+	if err != nil {
+		t.Errorf("expected err nil when removing generated file, got %q", err)
+	}
+	err = os.Remove(fmt.Sprintf("cce_hash_files_%d.zip", year))
+	if err != nil {
+		t.Errorf("expected err nil when removing created hash file, got %q", err)
+	}
+}
+
+func TestZipFile(t *testing.T) {
+	testCases := []struct {
+		fileName string
+		zipName  string
+		content  string
+	}{
+		{"file1.txt", "file1.zip", "Why'd you only call me when you're high?"},
+		{"file2.txt", "file2.zip", "Do I wanna know"},
+		{"file3.txt", "file3.zip", "Yesterday"},
+	}
+	for _, tt := range testCases {
+		err := zipFile([]byte(tt.content), tt.zipName, tt.fileName)
+		if err != nil {
+			t.Errorf("expected to have err nil when compressing test files, got %q", err)
+		}
+	}
+	for _, tt := range testCases {
+		_, err := os.Stat(tt.zipName)
+		if err != nil {
+			t.Errorf("expected err nil when checking file %s, got %q", tt.zipName, err)
+		}
+		err = os.Remove(tt.zipName)
+		if err != nil {
+			t.Errorf("expected err nil when removing test file, got %q", err)
+		}
 	}
 }
 
@@ -122,27 +154,6 @@ func TestRemoveDuplicates(t *testing.T) {
 	}
 	if len(c) != 2 {
 		t.Errorf("expected to have only two candidates after removing duplicates, got %d", len(c))
-	}
-}
-
-func TestInvalidPostRequest(t *testing.T) {
-	ts := fakeServer(t)
-	defer ts.Close()
-	fakeURLString := ts.URL + "/%d"
-	cceHandler := New(fakeURLString, ".")
-	e := echo.New()
-	req, err := http.NewRequest(http.MethodPost, ts.URL, strings.NewReader("INVALID REQUEST BODY"))
-	if err != nil {
-		t.Errorf("failed to create test request, expect error nil, got %q", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	cceHandler.Post(c)
-	res := rec.Result()
-	defer res.Body.Close()
-	if cceHandler.Status != status.Idle {
-		t.Errorf("expected status to stay Idle when sending invalid request body, got %d", status.Idle)
 	}
 }
 
