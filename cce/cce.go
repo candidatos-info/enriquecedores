@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -185,10 +186,53 @@ func (h *Handler) post() {
 	if err = os.RemoveAll(unzipDestination); err != nil {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
+	h.Status = status.Idle
 }
 
 // save candidatures localy on the given path
 func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
+	for _, c := range candidates {
+		path := fmt.Sprintf("%s_%d", c.UF, c.NumeroUrna) // TODO add year
+		tempFile, err := ioutil.TempFile("", path)
+		if err != nil {
+			return fmt.Errorf("falha ao criar arquivo temporário")
+		}
+		defer os.Remove(tempFile.Name())
+		candidatureBytes, err := json.Marshal(c)
+		if err != nil {
+			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
+		}
+		if _, err := tempFile.WriteString(string(candidatureBytes)); err != nil {
+			return fmt.Errorf("falha ao escrever struct como string em arquivo temporário %s, erro %q", tempFile.Name(), err)
+		}
+		// here
+		zipPath := fmt.Sprintf("%s.zip", path)
+		zipFile, err := os.Create(zipPath)
+		if err != nil {
+			log.Fatal("CU 1")
+		}
+		defer zipFile.Close()
+		zipWriter := zip.NewWriter(zipFile)
+		defer zipWriter.Close()
+		info, err := tempFile.Stat()
+		if err != nil {
+			log.Fatal("BOsta ")
+		}
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			log.Fatal("rola")
+		}
+		header.Name = "CU"
+		header.Method = zip.Deflate
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			log.Fatal("merda")
+		}
+		_, err = io.Copy(writer, tempFile)
+		if err != nil {
+			log.Fatal("OLHA A MERDA ", err)
+		}
+	}
 	return nil
 }
 
@@ -204,6 +248,7 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
 	for _, c := range candidates {
+		fmt.Println("PRIQUITO ", c.NumeroUrna)
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
 			nascimentoCandidato, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
@@ -219,7 +264,8 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 				Aptidao:           c.Aptidao,
 				Deferimento:       c.Deferimento,
 				TipoAgremiacao:    c.TipoAgremiacao,
-				NumeroPartido:     c.NumeroUrna,
+				NumeroPartido:     c.NumeroPartido,
+				NumeroUrna:        c.NumeroUrna,
 				LegendaPartido:    c.LegendaPartido,
 				NomePartido:       c.NomePartido,
 				NomeColigacao:     c.NomeColigacao,
