@@ -6,3 +6,6 @@
 .vscode/
 coverage.txt
 enriquecedores
+
+*.zip
+*.csv

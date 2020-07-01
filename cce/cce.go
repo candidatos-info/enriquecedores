@@ -21,7 +21,11 @@ import (
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo"
+	"golang.org/x/text/encoding/charmap"
 )
+
+// TODO Make year a request parameter.
+const year = 2016
 
 // Candidato representa os dados de um candidato
 type Candidato struct {
@@ -159,7 +163,8 @@ func (h *Handler) post() {
 		}
 		defer file.Close()
 		gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
-			r := csv.NewReader(in)
+			// Enforcing reading the TSE zip file as ISO 8859-1 (latin 1)
+			r := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(in))
 			r.LazyQuotes = true
 			r.Comma = ';'
 			return r
@@ -197,7 +202,7 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
 	savedCandidatures := 0
 	for _, c := range candidates {
-		candidaturePath := fmt.Sprintf("%s_%d.json", c.UF, c.NumeroUrna) // TODO add year (think how to do it)
+		candidaturePath := fmt.Sprintf("%d_%s_%s_%d.json", year, c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
