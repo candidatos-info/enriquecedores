@@ -24,9 +24,6 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-// TODO Make year a request parameter.
-const year = 2016
-
 // Candidato representa os dados de um candidato
 type Candidato struct {
 	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
@@ -194,7 +191,7 @@ func (h *Handler) post(in *postRequest) {
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		if err := saveCandidatesLocal(candidates, h.CandidaturesPath); err != nil {
+		if err := saveCandidatesLocal(candidates, h.CandidaturesPath, h.ElectionYear); err != nil {
 			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas localmente, erro: %q", err), h)
 			return
 		}
@@ -206,7 +203,7 @@ func (h *Handler) post(in *postRequest) {
 }
 
 // save candidatures localy on the given path
-func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
+func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string, year int) error {
 	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
 	savedCandidatures := 0
 	for _, c := range candidates {
@@ -386,7 +383,7 @@ func (h *Handler) Post(c echo.Context) error {
 	}
 	in := postRequest{}
 	if err := c.Bind(&in); err != nil {
-		errMessage := fmt.Sprintf("corpo de requisição inválido, erro %q", err)
+		errMessage := fmt.Sprintf("corpo de requisição é inválido, erro %q", err)
 		handleError(errMessage, h)
 		return c.String(http.StatusBadRequest, errMessage)
 	}
