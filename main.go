@@ -10,10 +10,6 @@ import (
 )
 
 func main() {
-	filesURL := os.Getenv("FILES_URL")
-	if filesURL == "" {
-		log.Fatal("missing FILES_URL environment variable")
-	}
 	baseDir := os.Getenv("CCE_BASE_DIR")
 	if baseDir == "" {
 		log.Fatal("missing CCE_BASE_DIR environment variable")
@@ -34,7 +30,7 @@ func main() {
 	if port == "" {
 		log.Fatal("missing PORT environment variable")
 	}
-	cceHandler := cce.New(filesURL, baseDir)
+	cceHandler := cce.New(baseDir)
 	e.POST("/cce", cceHandler.Post)
 	e.GET("/cce", cceHandler.Get)
 	log.Println("server online at ", port)

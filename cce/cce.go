@@ -87,12 +87,18 @@ type Handler struct {
 	SourceLocalPath  string        `json:"source_local_path"`  // the path where downloaded files should stay
 	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
 	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
+	ElectionYear     int           `json:"election_year"`      // year of election being handled
+}
+
+// struct used to pass year and source URL to CCE on post request
+type postRequest struct {
+	Year      int    `json:"year"`
+	SourceURL string `json:"source_url"`
 }
 
 // New returns a new CCE handler
-func New(sheetsServerString, sourceLocalPath string) *Handler {
+func New(sourceLocalPath string) *Handler {
 	return &Handler{
-		SourceURL:        sheetsServerString,
 		CandidaturesPath: sourceLocalPath,
 		Status:           status.Idle,
 	}
@@ -103,7 +109,9 @@ func (h *Handler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, h)
 }
 
-func (h *Handler) post() {
+func (h *Handler) post(in *postRequest) {
+	h.ElectionYear = in.Year
+	h.SourceURL = in.SourceURL
 	h.Status = status.Collecting
 	h.SourceLocalPath = fmt.Sprintf("cce_%s", path.Base(h.SourceURL))
 	f, err := os.Create(h.SourceLocalPath)
@@ -376,7 +384,13 @@ func (h *Handler) Post(c echo.Context) error {
 	if h.Status != status.Idle {
 		return c.String(http.StatusServiceUnavailable, "sistema está processando dados")
 	}
-	go h.post()
+	in := postRequest{}
+	if err := c.Bind(&in); err != nil {
+		errMessage := fmt.Sprintf("corpo de requisição inválido, erro %q", err)
+		handleError(errMessage, h)
+		return c.String(http.StatusBadRequest, errMessage)
+	}
+	go h.post(&in)
 	return c.String(http.StatusOK, "Requisição em processamento")
 }
 
