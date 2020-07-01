@@ -208,7 +208,7 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
 		}
 		if err = zipFile(candidatureBytes, fmt.Sprintf("%s/%s.zip", pathToSave, candidaturePath), candidaturePath); err != nil {
-			return fmt.Errorf("falha ao criar arquivo zip de candidatura")
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
 		savedCandidatures++
 	}
