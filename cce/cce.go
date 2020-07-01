@@ -149,7 +149,6 @@ func (h *Handler) post() {
 	var candidates []*descritor.Candidatura
 	for _, filePath := range downloadedFiles {
 		// TODO parallelize it using goroutines
-		fmt.Println("PATH ", filePath)
 		if strings.Contains(filePath, "consulta_cand_2016_BRASIL.csv") {
 			continue
 		}
@@ -170,7 +169,7 @@ func (h *Handler) post() {
 			handleError(fmt.Sprintf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err), h)
 			return
 		}
-		filteredCandidatures, err := removeDuplicates(c)
+		filteredCandidatures, err := removeDuplicates(c, path.Base(filePath))
 		if err != nil {
 			handleError(fmt.Sprintf("falha ao remover candidaturas duplicadas, erro %q", err), h)
 			return
@@ -195,9 +194,10 @@ func (h *Handler) post() {
 
 // save candidatures localy on the given path
 func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
+	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
+	savedCandidatures := 0
 	for _, c := range candidates {
 		candidaturePath := fmt.Sprintf("%s_%d.json", c.UF, c.NumeroUrna) // TODO add year (think how to do it)
-		fmt.Println("PATH ", candidaturePath)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -205,7 +205,9 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string)
 		if err = zipFile(candidatureBytes, fmt.Sprintf("%s/%s.zip", pathToSave, candidaturePath), candidaturePath); err != nil {
 			return fmt.Errorf("falha ao criar arquivo zip de candidatura")
 		}
+		savedCandidatures++
 	}
+	log.Printf("Saved candidatures: [ %d ]\n", savedCandidatures)
 	return nil
 }
 
@@ -238,11 +240,14 @@ func zipFile(bytesToWrite []byte, zipName, fileName string) error {
 // the election round (NR_TURNO) and the candidature situation (DS_SIT_TOT_TURNO).
 // This function takes care of it by collecting the candidate only once and
 // registering if it has gone or not to election second round.
-func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidatura, error) {
+func removeDuplicates(candidates []*Candidatura, fileBeingHandled string) (map[string]*descritor.Candidatura, error) {
 	candidatesMap := make(map[string]*descritor.Candidatura)
+	fileLines := 0
+	duplicatedLines := 0
 	for _, c := range candidates {
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
+			fileLines++
 			var candidateBirth time.Time
 			if c.Candidato.Nascimento != "" {
 				candidateBirth, err := time.Parse("02/01/2006", c.Candidato.Nascimento)
@@ -289,6 +294,7 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 			}
 			candidatesMap[c.CPF] = newCandidate
 		} else { // candidate already on map (maybe election second round)
+			duplicatedLines++
 			if c.Turno == 1 {
 				foundCandidate.SituacaoPrimeiroTurno = c.Situacao
 			} else {
@@ -296,6 +302,7 @@ func removeDuplicates(candidates []*Candidatura) (map[string]*descritor.Candidat
 			}
 		}
 	}
+	log.Printf("file [%s], lines [%d], duplicated lines [%d]\n", fileBeingHandled, fileLines, duplicatedLines)
 	return candidatesMap, nil
 }
 

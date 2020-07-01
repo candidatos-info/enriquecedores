@@ -34,7 +34,7 @@ func main() {
 	if port == "" {
 		log.Fatal("missing PORT environment variable")
 	}
-	cceHandler := cce.New(filesURL, baseDir)
+	cceHandler := cce.New("file:///Users/abuarquemf/Downloads/consulta_cand_2016.zip", "cce/baseDir")
 	e.POST("/cce", cceHandler.Post)
 	e.GET("/cce", cceHandler.Get)
 	log.Println("server online at ", port)
