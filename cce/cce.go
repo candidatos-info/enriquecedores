@@ -110,6 +110,7 @@ func (h *Handler) post(in *postRequest) {
 	h.ElectionYear = in.Year
 	h.SourceURL = in.SourceURL
 	h.Status = status.Collecting
+	log.Println("CCE Status [ COLLECTING ]")
 	h.SourceLocalPath = fmt.Sprintf("cce_%s", path.Base(h.SourceURL))
 	f, err := os.Create(h.SourceLocalPath)
 	if err != nil {
@@ -122,6 +123,7 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	h.Status = status.Hashing
+	log.Println("CCE Status [ HASHING ]")
 	ha, err := hash(buf)
 	h.SourceFileHash = ha
 	if err != nil {
@@ -150,6 +152,7 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	h.Status = status.Processing
+	log.Println("CCE Status [ PROCESSING ]")
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao descomprimir arquivos baixados, erro %q", err), h)
@@ -200,6 +203,7 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
 	h.Status = status.Idle
+	log.Println("CCE Status [ IDLE ]")
 }
 
 // save candidatures localy on the given path
@@ -404,6 +408,7 @@ func handleError(message string, h *Handler) {
 	log.Println(message)
 	h.Err = message
 	h.Status = status.Idle
+	log.Println("CCE Status [ IDLE ]")
 }
 
 // download a file and writes on the given writer
