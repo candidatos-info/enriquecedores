@@ -232,8 +232,12 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		}
 		defer zipFile.Close()
 		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
-		if err = h.client.UploadFile(zipFile, fmt.Sprintf("%d", h.ElectionYear), pathOnGCS); err != nil {
+		bucket := strings.ReplaceAll(h.CandidaturesPath, "gc://", "")
+		if err = h.client.UploadFile(zipFile, bucket, pathOnGCS); err != nil {
 			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
+		}
+		if err = os.RemoveAll(zipPath); err != nil {
+			return fmt.Errorf("falha ao remover arquivos de candidaturas criados, erro %q", err)
 		}
 		savedCandidatures++
 	}
