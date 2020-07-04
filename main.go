@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/candidatos-info/enriquecedores/cce"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 )
@@ -30,7 +32,11 @@ func main() {
 	if port == "" {
 		log.Fatal("missing PORT environment variable")
 	}
-	cceHandler := cce.New(baseDir)
+	fileStorage, err := filestorage.New()
+	if err != nil {
+		log.Fatal(fmt.Sprintf("falha ao criar cliente do Google Cloud Storage, erro %q", err))
+	}
+	cceHandler := cce.New(baseDir, fileStorage)
 	e.POST("/cce", cceHandler.Post)
 	e.GET("/cce", cceHandler.Get)
 	log.Println("server online at ", port)

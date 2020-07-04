@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo"
@@ -85,6 +86,7 @@ type Handler struct {
 	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
 	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
 	ElectionYear     int           `json:"election_year"`      // year of election being handled
+	client           *filestorage.Client
 }
 
 // struct used to pass year and source URL to CCE on post request
@@ -94,10 +96,11 @@ type postRequest struct {
 }
 
 // New returns a new CCE handler
-func New(sourceLocalPath string) *Handler {
+func New(sourceLocalPath string, client *filestorage.Client) *Handler {
 	return &Handler{
 		CandidaturesPath: sourceLocalPath,
 		Status:           status.Idle,
+		client:           client,
 	}
 }
 
