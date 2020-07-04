@@ -214,7 +214,8 @@ func (h *Handler) post(in *postRequest) {
 
 // save candidates on gcs
 func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error {
-	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
+	candidatesNumber := len(candidates)
+	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
 	savedCandidatures := 0
 	for _, c := range candidates {
 		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
@@ -240,6 +241,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 			return fmt.Errorf("falha ao remover arquivos de candidaturas criados, erro %q", err)
 		}
 		savedCandidatures++
+		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
 	}
 	log.Printf("Saved candidatures: [ %d ]\n", savedCandidatures)
 	return nil
