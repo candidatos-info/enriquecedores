@@ -24,9 +24,6 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-// TODO Make year a request parameter.
-const year = 2016
-
 // Candidato representa os dados de um candidato
 type Candidato struct {
 	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
@@ -87,12 +84,18 @@ type Handler struct {
 	SourceLocalPath  string        `json:"source_local_path"`  // the path where downloaded files should stay
 	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
 	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
+	ElectionYear     int           `json:"election_year"`      // year of election being handled
+}
+
+// struct used to pass year and source URL to CCE on post request
+type postRequest struct {
+	Year      int    `json:"year"`
+	SourceURL string `json:"source_url"`
 }
 
 // New returns a new CCE handler
-func New(sheetsServerString, sourceLocalPath string) *Handler {
+func New(sourceLocalPath string) *Handler {
 	return &Handler{
-		SourceURL:        sheetsServerString,
 		CandidaturesPath: sourceLocalPath,
 		Status:           status.Idle,
 	}
@@ -103,8 +106,11 @@ func (h *Handler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, h)
 }
 
-func (h *Handler) post() {
+func (h *Handler) post(in *postRequest) {
+	h.ElectionYear = in.Year
+	h.SourceURL = in.SourceURL
 	h.Status = status.Collecting
+	log.Println("CCE Status [ COLLECTING ]")
 	h.SourceLocalPath = fmt.Sprintf("cce_%s", path.Base(h.SourceURL))
 	f, err := os.Create(h.SourceLocalPath)
 	if err != nil {
@@ -117,6 +123,7 @@ func (h *Handler) post() {
 		return
 	}
 	h.Status = status.Hashing
+	log.Println("CCE Status [ HASHING ]")
 	ha, err := hash(buf)
 	h.SourceFileHash = ha
 	if err != nil {
@@ -145,6 +152,7 @@ func (h *Handler) post() {
 		return
 	}
 	h.Status = status.Processing
+	log.Println("CCE Status [ PROCESSING ]")
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao descomprimir arquivos baixados, erro %q", err), h)
@@ -186,7 +194,7 @@ func (h *Handler) post() {
 	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
 		// TODO add GCS implementation
 	} else {
-		if err := saveCandidatesLocal(candidates, h.CandidaturesPath); err != nil {
+		if err := saveCandidatesLocal(candidates, h.CandidaturesPath, h.ElectionYear); err != nil {
 			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas localmente, erro: %q", err), h)
 			return
 		}
@@ -195,10 +203,11 @@ func (h *Handler) post() {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
 	h.Status = status.Idle
+	log.Println("CCE Status [ IDLE ]")
 }
 
 // save candidatures localy on the given path
-func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string) error {
+func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string, year int) error {
 	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
 	savedCandidatures := 0
 	for _, c := range candidates {
@@ -376,7 +385,13 @@ func (h *Handler) Post(c echo.Context) error {
 	if h.Status != status.Idle {
 		return c.String(http.StatusServiceUnavailable, "sistema está processando dados")
 	}
-	go h.post()
+	in := postRequest{}
+	if err := c.Bind(&in); err != nil {
+		errMessage := fmt.Sprintf("corpo de requisição é inválido, erro %q", err)
+		handleError(errMessage, h)
+		return c.String(http.StatusBadRequest, errMessage)
+	}
+	go h.post(&in)
 	return c.String(http.StatusOK, "Requisição em processamento")
 }
 
@@ -393,6 +408,7 @@ func handleError(message string, h *Handler) {
 	log.Println(message)
 	h.Err = message
 	h.Status = status.Idle
+	log.Println("CCE Status [ IDLE ]")
 }
 
 // download a file and writes on the given writer
