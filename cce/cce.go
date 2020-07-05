@@ -194,7 +194,7 @@ func (h *Handler) post(in *postRequest) {
 			candidates = append(candidates, fc)
 		}
 	}
-	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
+	if strings.HasPrefix(h.CandidaturesPath, "gs://") {
 		if err := h.saveCandidatesOnGCS(candidates); err != nil {
 			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas no GCS, erro %q", err), h)
 			return
@@ -218,22 +218,23 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
 	savedCandidatures := 0
 	for _, c := range candidates {
-		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
+		cityName := strings.Replace(string(c.Municipio), " ", "_", -1)
+		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, cityName, c.NumeroUrna)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
 		}
 		zipPath := fmt.Sprintf("%s.zip", candidaturePath)
 		if err = zipFile(candidatureBytes, zipPath, candidaturePath); err != nil {
-			return fmt.Errorf("falha ao criar arquivo zip de candidatura")
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
 		zipFile, err := os.Open(zipPath)
 		if err != nil {
 			return fmt.Errorf("falha ao abrir arquivo zip %s, erro %q", zipPath, err)
 		}
 		defer zipFile.Close()
-		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
-		bucket := strings.ReplaceAll(h.CandidaturesPath, "gc://", "")
+		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
+		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
 		if err = h.client.UploadFile(zipFile, bucket, pathOnGCS); err != nil {
 			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
 		}
