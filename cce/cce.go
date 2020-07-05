@@ -209,6 +209,7 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
 	h.Status = status.Idle
+	h.Err = ""
 	log.Println("CCE Status [ IDLE ]")
 }
 
