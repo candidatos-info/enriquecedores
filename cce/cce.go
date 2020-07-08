@@ -241,6 +241,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 	return nil
 }
 
+// it does in memory compression of files
 func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if _, err := buf.Write(bytesToWrite); err != nil {
@@ -250,10 +251,10 @@ func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
 	defer w.Close()
 	f, err := w.Create(fileName)
 	if err != nil {
-		return nil, fmt.Errorf("falha ao criar o zip, err %q", err)
+		return nil, fmt.Errorf("falha ao criar o zip em memória, err %q", err)
 	}
 	if _, err = f.Write(bytesToWrite); err != nil {
-		return nil, fmt.Errorf("falha ao escrever o zip, err %q", err)
+		return nil, fmt.Errorf("falha ao escrever o zip em memória, err %q", err)
 	}
 	return buf.Bytes(), nil
 }
