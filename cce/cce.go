@@ -225,28 +225,37 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
 		}
-		zipPath := fmt.Sprintf("%s.zip", candidaturePath)
-		if err = zipFile(candidatureBytes, zipPath, candidaturePath); err != nil {
+		b, err := inMemoryZip(candidatureBytes, candidaturePath)
+		if err != nil {
 			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
-		zipFile, err := os.Open(zipPath)
-		if err != nil {
-			return fmt.Errorf("falha ao abrir arquivo zip %s, erro %q", zipPath, err)
-		}
-		defer zipFile.Close()
 		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
-		if err = h.client.Upload(zipFile, bucket, pathOnGCS); err != nil {
+		if err := h.client.Upload(b, bucket, pathOnGCS); err != nil {
 			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
-		}
-		if err = os.RemoveAll(zipPath); err != nil {
-			return fmt.Errorf("falha ao remover arquivos de candidaturas criados, erro %q", err)
 		}
 		savedCandidatures++
 		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
 	}
 	log.Printf("Saved candidatures: [ %d ]\n", savedCandidatures)
 	return nil
+}
+
+func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever bytes, erro %q", err)
+	}
+	w := zip.NewWriter(buf)
+	defer w.Close()
+	f, err := w.Create(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("falha ao criar o zip, err %q", err)
+	}
+	if _, err = f.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever o zip, err %q", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // save candidatures localy on the given path

@@ -1,6 +1,7 @@
 package filestorage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -32,11 +33,12 @@ func NewGCSClient() (*GSCClient, error) {
 
 // Upload gets and io.Reader, like a os.File, and uploads
 // its content to a bucket accoring with the given path
-func (gcs *GSCClient) Upload(reader io.Reader, bucket, path string) error {
+func (gcs *GSCClient) Upload(b []byte, bucket, path string) error {
+	r := bytes.NewReader(b)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	wc := gcs.client.Bucket(bucket).Object(path).NewWriter(ctx)
-	if _, err := io.Copy(wc, reader); err != nil {
+	if _, err := io.Copy(wc, r); err != nil {
 		return fmt.Errorf("falha ao copiar conteúdo de arquivo local para o bucket no GCS (%s/%s), erro %q", bucket, path, err)
 	}
 	if err := wc.Close(); err != nil {
