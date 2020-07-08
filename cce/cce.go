@@ -86,7 +86,7 @@ type Handler struct {
 	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
 	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
 	ElectionYear     int           `json:"election_year"`      // year of election being handled
-	client           *filestorage.Client
+	client           *filestorage.GSCClient
 }
 
 // struct used to pass year and source URL to CCE on post request
@@ -96,7 +96,7 @@ type postRequest struct {
 }
 
 // New returns a new CCE handler
-func New(sourceLocalPath string, client *filestorage.Client) *Handler {
+func New(sourceLocalPath string, client *filestorage.GSCClient) *Handler {
 	return &Handler{
 		CandidaturesPath: sourceLocalPath,
 		Status:           status.Idle,
@@ -236,7 +236,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		defer zipFile.Close()
 		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
-		if err = h.client.UploadFile(zipFile, bucket, pathOnGCS); err != nil {
+		if err = h.client.Upload(zipFile, bucket, pathOnGCS); err != nil {
 			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
 		}
 		if err = os.RemoveAll(zipPath); err != nil {
