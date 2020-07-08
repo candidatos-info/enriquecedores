@@ -270,8 +270,9 @@ func (h *Handler) saveCandidatesLocal(candidates []*descritor.Candidatura) error
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
 		}
-		if err = zipFile(candidatureBytes, fmt.Sprintf("%s/%s.zip", h.CandidaturesPath, candidaturePath), candidaturePath); err != nil {
-			return fmt.Errorf("falha ao criar arquivo zip de candidatura")
+		zipName := fmt.Sprintf("%s/%s.zip", h.CandidaturesPath, candidaturePath)
+		if err = zipFile(candidatureBytes, zipName, candidaturePath); err != nil {
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura %s, erro %q", zipName, err)
 		}
 		savedCandidatures++
 		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
