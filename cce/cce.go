@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/candidatos-info/enriquecedores/status"
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo"
@@ -85,6 +86,7 @@ type Handler struct {
 	CandidaturesPath string        `json:"candidatures_path"`  // the place where candidatures files will stay
 	UnzippedFilesDir string        `json:"unzipped_files_dir"` // temporary directory where unzipped files ares placed
 	ElectionYear     int           `json:"election_year"`      // year of election being handled
+	client           *filestorage.GSCClient
 }
 
 // struct used to pass year and source URL to CCE on post request
@@ -94,10 +96,11 @@ type postRequest struct {
 }
 
 // New returns a new CCE handler
-func New(sourceLocalPath string) *Handler {
+func New(sourceLocalPath string, client *filestorage.GSCClient) *Handler {
 	return &Handler{
 		CandidaturesPath: sourceLocalPath,
 		Status:           status.Idle,
+		client:           client,
 	}
 }
 
@@ -191,10 +194,13 @@ func (h *Handler) post(in *postRequest) {
 			candidates = append(candidates, fc)
 		}
 	}
-	if strings.HasPrefix(h.CandidaturesPath, "gc://") {
-		// TODO add GCS implementation
+	if strings.HasPrefix(h.CandidaturesPath, "gs://") {
+		if err := h.saveCandidatesOnGCS(candidates); err != nil {
+			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas no GCS, erro %q", err), h)
+			return
+		}
 	} else {
-		if err := saveCandidatesLocal(candidates, h.CandidaturesPath, h.ElectionYear); err != nil {
+		if err := h.saveCandidatesLocal(candidates); err != nil {
 			handleError(fmt.Sprintf("falha ao salvar arquivos de candidaturas localmente, erro: %q", err), h)
 			return
 		}
@@ -203,15 +209,63 @@ func (h *Handler) post(in *postRequest) {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
 	h.Status = status.Idle
+	h.Err = ""
 	log.Println("CCE Status [ IDLE ]")
 }
 
-// save candidatures localy on the given path
-func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string, year int) error {
-	log.Printf("Candidatures to save: [ %d ]\n", len(candidates))
+// save candidates on gcs
+func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error {
+	candidatesNumber := len(candidates)
+	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
 	savedCandidatures := 0
 	for _, c := range candidates {
-		candidaturePath := fmt.Sprintf("%d_%s_%s_%d.json", year, c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
+		cityName := strings.Replace(string(c.Municipio), " ", "_", -1)
+		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, cityName, c.NumeroUrna)
+		candidatureBytes, err := json.Marshal(c)
+		if err != nil {
+			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
+		}
+		b, err := inMemoryZip(candidatureBytes, candidaturePath)
+		if err != nil {
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
+		}
+		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
+		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
+		if err := h.client.Upload(b, bucket, pathOnGCS); err != nil {
+			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
+		}
+		savedCandidatures++
+		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
+	}
+	log.Printf("Saved candidatures: [ %d ]\n", savedCandidatures)
+	return nil
+}
+
+// it does in memory compression of files
+func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever bytes, erro %q", err)
+	}
+	w := zip.NewWriter(buf)
+	defer w.Close()
+	f, err := w.Create(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("falha ao criar o zip em memória, err %q", err)
+	}
+	if _, err = f.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever o zip em memória, err %q", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// save candidatures localy on the given path
+func (h *Handler) saveCandidatesLocal(candidates []*descritor.Candidatura) error {
+	candidatesNumber := len(candidates)
+	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
+	savedCandidatures := 0
+	for _, c := range candidates {
+		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, strings.Replace(string(c.Municipio), " ", "_", -1), c.NumeroUrna)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -220,6 +274,7 @@ func saveCandidatesLocal(candidates []*descritor.Candidatura, pathToSave string,
 			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
 		savedCandidatures++
+		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
 	}
 	log.Printf("Saved candidatures: [ %d ]\n", savedCandidatures)
 	return nil
