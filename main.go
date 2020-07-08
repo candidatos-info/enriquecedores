@@ -31,11 +31,11 @@ func main() {
 	if port == "" {
 		log.Fatal("missing PORT environment variable")
 	}
-	fileStorage, err := filestorage.NewGCSClient()
+	gcsClient, err := filestorage.NewGCSClient()
 	if err != nil {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
-	cceHandler := cce.New(baseDir, fileStorage)
+	cceHandler := cce.New(baseDir, gcsClient)
 	e.POST("/cce", cceHandler.Post)
 	e.GET("/cce", cceHandler.Get)
 	log.Println("server online at ", port)
