@@ -236,16 +236,8 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		}
 		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
-		err = try.Do(func(attempt int) (retry bool, err error) {
-			retry = attempt < maxAttempts
-			log.Printf("attempt to upload to GCS number [ %d ]\n", attempt)
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("falha ao tentar novamente fazer requisição ao GCS %q", err)
-				}
-			}()
-			err = h.client.Upload(b, bucket, pathOnGCS)
-			return
+		err = try.Do(func(attempt int) (bool, error) {
+			return attempt < maxAttempts, h.client.Upload(b, bucket, pathOnGCS)
 		})
 		if err != nil {
 			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", pathOnGCS, bucket, err)
