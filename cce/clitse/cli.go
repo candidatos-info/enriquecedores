@@ -24,8 +24,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		err := collect(*source, *outDir)
-		if err != nil {
+		if err := collect(*source, *outDir); err != nil {
 			log.Fatal("falha ao executar coleta, erro %q", err)
 		}
 	} else {
@@ -38,8 +37,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		err := process(*state, *outDir, *year)
-		if err != nil {
+		if err := process(*state, *outDir, *year); err != nil {
 			log.Fatal("falha ao executar enriquecimento, erro %q", err)
 		}
 	}
