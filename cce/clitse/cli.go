@@ -10,8 +10,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/labstack/echo"
 )
 
 func main() {
@@ -19,6 +22,7 @@ func main() {
 	outDir := flag.String("outdir", "", "diretório de arquivo zip a ser usado pelo CCE")
 	year := flag.Int("ano", 0, "ano da eleição")
 	state := flag.String("estado", "", "estado a ser processado")
+	httpAddress := flag.String("remoteadd", "", "endereço do web do servidor") // em produção passar o endereço ngrok, caso contrário passar http://localhost:8080
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -37,7 +41,10 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *year); err != nil {
+		if *httpAddress == "" {
+			log.Fatal("informe o endereço fornecido pelo NGROK")
+		}
+		if err := process(*state, *outDir, *httpAddress, *year); err != nil {
 			log.Fatal("falha ao executar enriquecimento, erro %q", err)
 		}
 	}
@@ -136,7 +143,28 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir string, year int) error {
-	// TODO implement
+func process(state, outDir, ngrokAddress string, year int) error {
+	pathToHandle := ""
+	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
+		if strings.Contains(path, state) {
+			pathToHandle = path
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("falha ao varrer arquivos no diretório %s, erro %q", outDir, err)
+	}
+	if pathToHandle == "" {
+		return fmt.Errorf("falha ao encontrar arquivo para estado %s", state)
+	}
+	pathToHandle = path.Base(pathToHandle)
+	go func() {
+		e := echo.New()
+		e.Static("/static", outDir)
+		e.Start(":8080")
+	}()
+	fileURL := fmt.Sprintf("%s/static/%s", ngrokAddress, pathToHandle)
+
+	// TODO call CCE
 	return nil
 }
