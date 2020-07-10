@@ -23,6 +23,7 @@ import (
 	"github.com/gocarina/gocsv"
 	"github.com/labstack/echo"
 	"golang.org/x/text/encoding/charmap"
+	"gopkg.in/matryer/try.v1"
 )
 
 // Candidato representa os dados de um candidato
@@ -74,6 +75,10 @@ var (
 		"S": true,
 		"N": false,
 	}
+)
+
+const (
+	maxAttempts = 5
 )
 
 // Handler is a struct to hold important data for this package
@@ -231,8 +236,11 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		}
 		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
-		if err := h.client.Upload(b, bucket, pathOnGCS); err != nil {
-			return fmt.Errorf("falha ao salvar arquivo .zip de candidatura no GCS, erro %q", err)
+		err = try.Do(func(attempt int) (bool, error) {
+			return attempt < maxAttempts, h.client.Upload(b, bucket, pathOnGCS)
+		})
+		if err != nil {
+			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", pathOnGCS, bucket, err)
 		}
 		savedCandidatures++
 		log.Printf("saved file [ %s ], lefting [ %d ] more files to write\n", candidaturePath, candidatesNumber-savedCandidatures)
