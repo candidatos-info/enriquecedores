@@ -187,9 +187,7 @@ func process(state, outDir, ngrokAddress, cceAddress, userName, password string,
 		return fmt.Errorf("falha ao ler bytes de arquivo de estado %s, erro %q", pathToHandle, err)
 	}
 	zipName := fmt.Sprintf("%s/ARQUIVO_%s_%d.zip", outDir, state, year)
-	fmt.Println("ZIP NAME ", zipName)
 	fileName := path.Base(pathToHandle)
-	// TODO change to use in memory compression
 	if err = zipFile(fileBytes, zipName, fileName); err != nil {
 		return fmt.Errorf("falha ao comprimir arquivo %s, erro %q", pathToHandle, err)
 	}
@@ -199,7 +197,6 @@ func process(state, outDir, ngrokAddress, cceAddress, userName, password string,
 		e.Start(fmt.Sprintf(":%d", port))
 	}()
 	fileURL := fmt.Sprintf("%s/static/%s", ngrokAddress, path.Base(zipName))
-	fmt.Println("FILE URL ", fileURL)
 	pr := postRequest{
 		Year:      year,
 		SourceURL: fileURL,

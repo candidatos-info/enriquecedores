@@ -12,7 +12,10 @@ Após a etapa de coleta devemos executar o enriquecimento. Para executar o enriq
 go run cli.go go run cli.go -estado=${ESTADO} -ano=${ANO} -outdir=${OUTDIR} -remoteadd=${REMOTE_ADD} -cceadd=${CCE_ADD} -username=${USERNAME} -password=${PASSWORD}
 ```
 
-Onde Estado é o código UF (SIGLA) do estado a ser enriquecido (seguindo a tabela abaixo), ANO é o ano da eleição a ser processadada, OUTDIR o diretório usado na etapa de coleta, REMOTE_ADD é o endereço o qual o mini servidor do cli está exposto, CCE_ADD é o endereço do CCE, USERNAME e PASSWORD são os parâmetros de basic auth.
+Onde Estado é o código UF (SIGLA) do estado a ser enriquecido (seguindo a tabela abaixo), ANO é o ano da eleição a ser processadada, OUTDIR o diretório usado na etapa de coleta, REMOTE_ADD é o endereço o qual o mini servidor do cli está exposto, CCE_ADD é o endereço do CCE, USERNAME e PASSWORD são os parâmetros de basic auth. Um exemplo completo de chamada é o seguinte:
+```
+go run cli.go -estado=TO -ano=2016 -outdir=./baseDir -remoteadd=https://2f307e515c14.ngrok.io -cceadd=http://localhost:8877/cce -username=cands -password=pass
+```
 
 | Estado | Sigla |
 |:--:|:--|
