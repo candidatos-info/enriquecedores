@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	port = 8080
+	port      = 8080
+	timeLimit = time.Second * 2
 )
 
 // struct used to pass year and source URL to CCE on post request
@@ -36,6 +37,8 @@ func main() {
 	state := flag.String("estado", "", "estado a ser processado")
 	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar http://localhost:8080
 	cceAddress := flag.String("cceadd", "", "endereço web do cce")
+	userName := flag.String("username", "", "user name para basic auth")
+	password := flag.String("password", "", "senha para basic auth")
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -60,7 +63,13 @@ func main() {
 		if *cceAddress == "" {
 			log.Fatal("informe o endereço do CCE")
 		}
-		if err := process(*state, *outDir, *httpAddress, *cceAddress, *year); err != nil {
+		if *userName == "" {
+			log.Fatal("informe o login de basic auth")
+		}
+		if *password == "" {
+			log.Fatal("informe a senha de basic auth")
+		}
+		if err := process(*state, *outDir, *httpAddress, *cceAddress, *userName, *password, *year); err != nil {
 			log.Fatal("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -159,7 +168,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, ngrokAddress, cceAddress string, year int) error {
+func process(state, outDir, ngrokAddress, cceAddress, userName, password string, year int) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -202,7 +211,7 @@ func process(state, outDir, ngrokAddress, cceAddress string, year int) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", "http://localhost:8877/cce", bytes.NewBuffer(requestBodyBytes))
 	req.Header.Set("Content-type", "application/json")
-	req.SetBasicAuth("cands", "pass")
+	req.SetBasicAuth(userName, password)
 	res, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
@@ -211,7 +220,7 @@ func process(state, outDir, ngrokAddress, cceAddress string, year int) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("código de resposta esperado era 200, tivemos %d", res.StatusCode)
 	}
-	time.Sleep(time.Second * 15)
+	time.Sleep(timeLimit) // sleep é importante para garantir um tempo de "sobra"
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
 	}
