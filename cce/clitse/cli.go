@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,16 +14,28 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo"
 )
+
+const (
+	port = 8080
+)
+
+// struct used to pass year and source URL to CCE on post request
+type postRequest struct {
+	Year      int    `json:"year"`
+	SourceURL string `json:"source_url"`
+}
 
 func main() {
 	source := flag.String("coleta", "", "fonte do arquivo zip")
 	outDir := flag.String("outdir", "", "diretório de arquivo zip a ser usado pelo CCE")
 	year := flag.Int("ano", 0, "ano da eleição")
 	state := flag.String("estado", "", "estado a ser processado")
-	httpAddress := flag.String("remoteadd", "", "endereço do web do servidor") // em produção passar o endereço ngrok, caso contrário passar http://localhost:8080
+	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar http://localhost:8080
+	cceAddress := flag.String("cceadd", "", "endereço web do cce")
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -44,8 +57,11 @@ func main() {
 		if *httpAddress == "" {
 			log.Fatal("informe o endereço fornecido pelo NGROK")
 		}
-		if err := process(*state, *outDir, *httpAddress, *year); err != nil {
-			log.Fatal("falha ao executar enriquecimento, erro %q", err)
+		if *cceAddress == "" {
+			log.Fatal("informe o endereço do CCE")
+		}
+		if err := process(*state, *outDir, *httpAddress, *cceAddress, *year); err != nil {
+			log.Fatal("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
 }
@@ -143,7 +159,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, ngrokAddress string, year int) error {
+func process(state, outDir, ngrokAddress, cceAddress string, year int) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -157,14 +173,67 @@ func process(state, outDir, ngrokAddress string, year int) error {
 	if pathToHandle == "" {
 		return fmt.Errorf("falha ao encontrar arquivo para estado %s", state)
 	}
-	pathToHandle = path.Base(pathToHandle)
+	fileBytes, err := ioutil.ReadFile(pathToHandle)
+	if err != nil {
+		return fmt.Errorf("falha ao ler bytes de arquivo de estado %s, erro %q", pathToHandle, err)
+	}
+	zipName := fmt.Sprintf("%s/ARQUIVO_%s_%d.zip", outDir, state, year)
+	fmt.Println("ZIP NAME ", zipName)
+	fileName := path.Base(pathToHandle)
+	// TODO change to use in memory compression
+	if err = zipFile(fileBytes, zipName, fileName); err != nil {
+		return fmt.Errorf("falha ao comprimir arquivo %s, erro %q", pathToHandle, err)
+	}
 	go func() {
 		e := echo.New()
 		e.Static("/static", outDir)
-		e.Start(":8080")
+		e.Start(fmt.Sprintf(":%d", port))
 	}()
-	fileURL := fmt.Sprintf("%s/static/%s", ngrokAddress, pathToHandle)
+	fileURL := fmt.Sprintf("%s/static/%s", ngrokAddress, path.Base(zipName))
+	fmt.Println("FILE URL ", fileURL)
+	pr := postRequest{
+		Year:      year,
+		SourceURL: fileURL,
+	}
+	requestBodyBytes, err := json.Marshal(pr)
+	if err != nil {
+		return fmt.Errorf("falha ao pegar bytes do corpo da requisição, erro %q", err)
+	}
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "http://localhost:8877/cce", bytes.NewBuffer(requestBodyBytes))
+	req.Header.Set("Content-type", "application/json")
+	req.SetBasicAuth("cands", "pass")
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return fmt.Errorf("código de resposta esperado era 200, tivemos %d", res.StatusCode)
+	}
+	time.Sleep(time.Second * 15)
+	if err = os.Remove(zipName); err != nil {
+		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
+	}
+	return nil
+}
 
-	// TODO call CCE
+// it gets an array of bytes to write into a file called fileName that
+// will be compressed into a zip called zipName
+func zipFile(bytesToWrite []byte, zipName, fileName string) error {
+	outFile, err := os.Create(zipName)
+	if err != nil {
+		return fmt.Errorf("falha ao criar arquivo zip %s, erro %q", zipName, err)
+	}
+	defer outFile.Close()
+	w := zip.NewWriter(outFile)
+	defer w.Close()
+	f, err := w.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("falha ao criar o zip, err %q", err)
+	}
+	if _, err = f.Write(bytesToWrite); err != nil {
+		return fmt.Errorf("falha ao escrever o zip, err %q", err)
+	}
 	return nil
 }
