@@ -21,7 +21,7 @@ import (
 
 const (
 	port      = 8080
-	timeLimit = time.Second * 2
+	timeLimit = time.Second * 10
 )
 
 // struct used to pass year and source URL to CCE on post request
@@ -45,7 +45,7 @@ func main() {
 			log.Fatal("informe diretório de saída")
 		}
 		if err := collect(*source, *outDir); err != nil {
-			log.Fatal("falha ao executar coleta, erro %q", err)
+			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
 		if *state == "" {
@@ -70,7 +70,7 @@ func main() {
 			log.Fatal("informe a senha de basic auth")
 		}
 		if err := process(*state, *outDir, *httpAddress, *cceAddress, *userName, *password, *year); err != nil {
-			log.Fatal("falha ao executar enriquecimento, erro %v", err)
+			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
 }
@@ -78,7 +78,7 @@ func main() {
 func collect(source, outDir string) error {
 	tempFile, err := ioutil.TempFile("", "temporaryFile")
 	if err != nil {
-		return fmt.Errorf("falha ao criar arquivo temporário para arquivo .zip", err)
+		return fmt.Errorf("falha ao criar arquivo temporário para arquivo .zip, erro %q", err)
 	}
 	bytes, err := donwloadFile(source, tempFile)
 	if err != nil {
