@@ -21,7 +21,7 @@ import (
 
 const (
 	port      = 8080
-	timeLimit = time.Second * 10
+	timeLimit = time.Second * 15
 )
 
 // struct used to pass year and source URL to CCE on post request
