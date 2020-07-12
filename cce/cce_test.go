@@ -215,4 +215,5 @@ func fakeServer(t *testing.T) *httptest.Server {
 // 	if err = os.RemoveAll(unzipDestination); err != nil {
 // 		t.Errorf("expected to have err nil when removing temporary dir, got %q", err)
 // 	}
+
 // }
