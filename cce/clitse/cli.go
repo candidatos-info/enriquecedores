@@ -198,7 +198,9 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		return fmt.Errorf("falha ao ler bytes de arquivo de estado %s, erro %q", pathToHandle, err)
 	}
 	zipName := fmt.Sprintf("%s/ARQUIVO_%s_%d.zip", outDir, state, year)
+	fmt.Println("ZIP NAME CRIADO ", zipName)
 	fileName := path.Base(pathToHandle)
+	fmt.Println("FILENAME ", fileName)
 	if err = zipFile(fileBytes, zipName, fileName); err != nil {
 		return fmt.Errorf("falha ao comprimir arquivo %s, erro %q", pathToHandle, err)
 	}
@@ -231,7 +233,13 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 	req.Header.Set("Content-type", "application/json")
 	req.SetBasicAuth(userName, password)
 	status := 1
-	for status <= 1 {
+	for {
+		if status == 0 { // se ocorrer algum erro no CCE o status volta para IDLE (idle = 0)
+			break
+		}
+		if status >= 2 { // passou do status da coleta (status >= 2)
+			break
+		}
 		res, err = client.Do(req)
 		if err != nil {
 			return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
@@ -247,6 +255,7 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		}
 		status = cceResponse.Status
 	}
+	fmt.Println("FILE TO REMOVE ", zipName)
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
 	}
