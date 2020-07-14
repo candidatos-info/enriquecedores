@@ -198,9 +198,7 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		return fmt.Errorf("falha ao ler bytes de arquivo de estado %s, erro %q", pathToHandle, err)
 	}
 	zipName := fmt.Sprintf("%s/ARQUIVO_%s_%d.zip", outDir, state, year)
-	fmt.Println("ZIP NAME CRIADO ", zipName)
 	fileName := path.Base(pathToHandle)
-	fmt.Println("FILENAME ", fileName)
 	if err = zipFile(fileBytes, zipName, fileName); err != nil {
 		return fmt.Errorf("falha ao comprimir arquivo %s, erro %q", pathToHandle, err)
 	}
@@ -255,7 +253,6 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		}
 		status = cceResponse.Status
 	}
-	fmt.Println("FILE TO REMOVE ", zipName)
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
 	}
