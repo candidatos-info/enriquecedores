@@ -24,10 +24,21 @@ const (
 	timeLimit = time.Second * 15
 )
 
+var (
+	client = &http.Client{
+		Timeout: time.Second * 40,
+	}
+)
+
 // struct used to pass year and source URL to CCE on post request
 type postRequest struct {
 	Year      int    `json:"year"`
 	SourceURL string `json:"source_url"`
+}
+
+// response about cce state
+type cceStatusResponse struct {
+	Status int `json:"status"`
 }
 
 func main() {
@@ -35,7 +46,7 @@ func main() {
 	outDir := flag.String("outdir", "", "diretório de arquivo zip a ser usado pelo CCE")
 	year := flag.Int("ano", 0, "ano da eleição")
 	state := flag.String("estado", "", "estado a ser processado")
-	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar http://localhost:8080
+	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar o endereço local como http://localhost:8080
 	cceAddress := flag.String("cceadd", "", "endereço web do cce")
 	userName := flag.String("username", "", "user name para basic auth")
 	password := flag.String("password", "", "senha para basic auth")
@@ -58,7 +69,7 @@ func main() {
 			log.Fatal("informe diretório de saída")
 		}
 		if *httpAddress == "" {
-			log.Fatal("informe o endereço fornecido pelo NGROK")
+			log.Fatal("informe o endereço privisionado para este provedor de arquivos")
 		}
 		if *cceAddress == "" {
 			log.Fatal("informe o endereço do CCE")
@@ -168,7 +179,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, ngrokAddress, cceAddress, userName, password string, year int) error {
+func process(state, outDir, thisServerAddress, cceAddress, userName, password string, year int) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -196,7 +207,7 @@ func process(state, outDir, ngrokAddress, cceAddress, userName, password string,
 		e.Static("/static", outDir)
 		e.Start(fmt.Sprintf(":%d", port))
 	}()
-	fileURL := fmt.Sprintf("%s/static/%s", ngrokAddress, path.Base(zipName))
+	fileURL := fmt.Sprintf("%s/static/%s", thisServerAddress, path.Base(zipName))
 	pr := postRequest{
 		Year:      year,
 		SourceURL: fileURL,
@@ -205,8 +216,7 @@ func process(state, outDir, ngrokAddress, cceAddress, userName, password string,
 	if err != nil {
 		return fmt.Errorf("falha ao pegar bytes do corpo da requisição, erro %q", err)
 	}
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", "http://localhost:8877/cce", bytes.NewBuffer(requestBodyBytes))
+	req, err := http.NewRequest("POST", cceAddress, bytes.NewBuffer(requestBodyBytes))
 	req.Header.Set("Content-type", "application/json")
 	req.SetBasicAuth(userName, password)
 	res, err := client.Do(req)
@@ -217,7 +227,26 @@ func process(state, outDir, ngrokAddress, cceAddress, userName, password string,
 	if res.StatusCode != 200 {
 		return fmt.Errorf("código de resposta esperado era 200, tivemos %d", res.StatusCode)
 	}
-	time.Sleep(timeLimit) // sleep é importante para garantir um tempo de "sobra"
+	req, err = http.NewRequest("GET", cceAddress, nil)
+	req.Header.Set("Content-type", "application/json")
+	req.SetBasicAuth(userName, password)
+	status := 1
+	for status <= 1 {
+		res, err = client.Do(req)
+		if err != nil {
+			return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
+		}
+		defer res.Body.Close()
+		bodyBytes, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("falha ao ler bytes do corpo da resposta do CCE, erro %q", err)
+		}
+		cceResponse := cceStatusResponse{}
+		if err = json.Unmarshal(bodyBytes, &cceResponse); err != nil {
+			return fmt.Errorf("falha ao fazer unmarshal de resposta do CCE, erro %q", err)
+		}
+		status = cceResponse.Status
+	}
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
 	}
