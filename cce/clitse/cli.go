@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -20,13 +21,28 @@ import (
 )
 
 const (
-	port      = 9999
-	timeLimit = time.Second * 15
+	port = 9999 // port user to up this local server
+
+	statusCollecting = 1 // integer to represent status collecting
+
+	statusIdle = 0 // integer to represent status idle
+
+	statusHashing = 2 // integer to represent status hashing
 )
 
 var (
+	// http client
 	client = &http.Client{
 		Timeout: time.Second * 40,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
 	}
 )
 
@@ -38,7 +54,8 @@ type postRequest struct {
 
 // response about cce state
 type cceStatusResponse struct {
-	Status int `json:"status"`
+	Status int    `json:"status"`
+	Err    string `json:"err"`
 }
 
 func main() {
@@ -208,6 +225,7 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		e.Start(fmt.Sprintf(":%d", port))
 	}()
 	fileURL := fmt.Sprintf("%s/static/%s", thisServerAddress, path.Base(zipName))
+	fmt.Println(fileURL)
 	pr := postRequest{
 		Year:      year,
 		SourceURL: fileURL,
@@ -230,12 +248,16 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 	req, err = http.NewRequest("GET", cceAddress, nil)
 	req.Header.Set("Content-type", "application/json")
 	req.SetBasicAuth(userName, password)
-	status := 1
+	cceResponse := cceStatusResponse{
+		Status: statusCollecting,
+	}
 	for {
-		if status == 0 { // se ocorrer algum erro no CCE o status volta para IDLE (idle = 0)
+		if cceResponse.Err != "" {
+			log.Printf("CCE foi para status IDLE com erro %s\n", cceResponse.Err)
 			break
 		}
-		if status >= 2 { // passou do status da coleta (status >= 2)
+		if cceResponse.Status >= statusHashing { // passou do status da coleta (status >= 2)
+			log.Println("CCE iniciou processamento do arquivo")
 			break
 		}
 		res, err = client.Do(req)
@@ -247,11 +269,9 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		if err != nil {
 			return fmt.Errorf("falha ao ler bytes do corpo da resposta do CCE, erro %q", err)
 		}
-		cceResponse := cceStatusResponse{}
 		if err = json.Unmarshal(bodyBytes, &cceResponse); err != nil {
 			return fmt.Errorf("falha ao fazer unmarshal de resposta do CCE, erro %q", err)
 		}
-		status = cceResponse.Status
 	}
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
