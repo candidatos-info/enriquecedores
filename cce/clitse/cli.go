@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	port      = 8080
+	port      = 9999
 	timeLimit = time.Second * 15
 )
 
@@ -46,7 +46,7 @@ func main() {
 	outDir := flag.String("outdir", "", "diretório de arquivo zip a ser usado pelo CCE")
 	year := flag.Int("ano", 0, "ano da eleição")
 	state := flag.String("estado", "", "estado a ser processado")
-	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar o endereço local como http://localhost:8080
+	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar o endereço local como http://localhost:9999
 	cceAddress := flag.String("cceadd", "", "endereço web do cce")
 	userName := flag.String("username", "", "user name para basic auth")
 	password := flag.String("password", "", "senha para basic auth")
