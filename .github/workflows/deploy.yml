@@ -32,7 +32,7 @@ jobs:
       with:
         service_account_email: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_EMAIL }}
         service_account_key: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_KEY }}
-        project_id: colabore-dev
+        project_id: candidatosinfodev
     
     - name: Installing add on for golang
       run: sudo apt-get install google-cloud-sdk-app-engine-go
@@ -40,6 +40,5 @@ jobs:
     - name: Publish app to Google App Engine
       run: |
         gcloud auth activate-service-account ${{ secrets.GCLOUD_SERVICE_ACCOUNT_EMAIL }} --key-file=client-secret.json
-        gcloud config set project colabore-dev
+        gcloud config set project candidatosinfodev
         gcloud -q app deploy app.yaml --promote
-        
