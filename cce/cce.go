@@ -225,8 +225,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
 	savedCandidatures := 0
 	for _, c := range candidates {
-		cityName := strings.Replace(string(c.Municipio), " ", "_", -1)
-		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, cityName, c.NumeroUrna)
+		candidaturePath := fmt.Sprintf("%s.json", c.SequencialCandidato)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -274,7 +273,7 @@ func (h *Handler) saveCandidatesLocal(candidates []*descritor.Candidatura) error
 	log.Printf("Candidatures to save: [ %d ]\n", candidatesNumber)
 	savedCandidatures := 0
 	for _, c := range candidates {
-		candidaturePath := fmt.Sprintf("%d-%s.json", h.ElectionYear, c.SequencialCandidato)
+		candidaturePath := fmt.Sprintf("%s.json", c.SequencialCandidato)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
