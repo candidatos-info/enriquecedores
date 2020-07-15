@@ -21,13 +21,10 @@ import (
 )
 
 const (
-	port = 9999 // port user to up this local server
-
-	statusCollecting = 1 // integer to represent status collecting
-
-	statusIdle = 0 // integer to represent status idle
-
-	statusHashing = 2 // integer to represent status hashing
+	port             = 9999 // port user to up this local server
+	statusCollecting = 1    // integer to represent status collecting
+	statusIdle       = 0    // integer to represent status idle
+	statusHashing    = 2    // integer to represent status hashing
 )
 
 var (
@@ -225,7 +222,6 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		e.Start(fmt.Sprintf(":%d", port))
 	}()
 	fileURL := fmt.Sprintf("%s/static/%s", thisServerAddress, path.Base(zipName))
-	fmt.Println(fileURL)
 	pr := postRequest{
 		Year:      year,
 		SourceURL: fileURL,
