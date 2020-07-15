@@ -24,30 +24,6 @@ func fakeServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-func TestPost(t *testing.T) {
-	path, err := os.Getwd()
-	if err != nil {
-		t.Errorf("expected to have err nil when getting current directory, got %q", err)
-	}
-	year := 2016
-	sourceURL := fmt.Sprintf("file://%s/files_%d.zip", path, year)
-	cceHandler := New(sourceURL, "baseDir")
-	cceHandler.post()
-	expectedGeneratedFileName := fmt.Sprintf("cce_files_%d.zip", year)
-	_, err = ioutil.ReadFile(expectedGeneratedFileName)
-	if err != nil {
-		t.Errorf("failed to read the expected file, got err %q", err)
-	}
-	err = os.Remove(expectedGeneratedFileName)
-	if err != nil {
-		t.Errorf("expected err nil when removing generated file, got %q", err)
-	}
-	err = os.Remove(fmt.Sprintf("cce_hash_files_%d.zip", year))
-	if err != nil {
-		t.Errorf("expected err nil when removing created hash file, got %q", err)
-	}
-}
-
 func TestZipFile(t *testing.T) {
 	testCases := []struct {
 		fileName string
@@ -148,7 +124,7 @@ func TestRemoveDuplicates(t *testing.T) {
 			},
 		},
 	}
-	c, err := removeDuplicates(candidates)
+	c, err := removeDuplicates(candidates, "name")
 	if err != nil {
 		t.Errorf("expected to have err nil when removing duplicated, got %q", err)
 	}
