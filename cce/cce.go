@@ -226,7 +226,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 	savedCandidatures := 0
 	for _, c := range candidates {
 		cityName := strings.Replace(string(c.Municipio), " ", "_", -1)
-		candidaturePath := fmt.Sprintf("%d-%s.json", h.ElectionYear, c.SequencialCandidato)
+		candidaturePath := fmt.Sprintf("%d-%s-%s-%d.json", h.ElectionYear, c.UF, cityName, c.NumeroUrna)
 		candidatureBytes, err := json.Marshal(c)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de struct candidatura, erro %q", err)
@@ -235,7 +235,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		if err != nil {
 			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
-		pathOnGCS := fmt.Sprintf("%s/%s/%d.zip", c.UF, cityName, c.NumeroUrna)
+		pathOnGCS := fmt.Sprintf("%d-%s.zip", h.ElectionYear, c.SequencialCandidato)
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
 		err = try.Do(func(attempt int) (bool, error) {
 			return attempt < maxAttempts, h.client.Upload(b, bucket, pathOnGCS)
