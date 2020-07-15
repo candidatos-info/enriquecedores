@@ -4,7 +4,7 @@ on:
   push:
     branches:    
       - '**'        # matches every branch
-      - '!master'   # exclude master to avoid run this script on pull request merged into master
+#- '!master'   # exclude master to avoid run this script on pull request merged into master
 
 jobs:
 
