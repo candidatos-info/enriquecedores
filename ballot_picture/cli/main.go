@@ -6,9 +6,9 @@ import (
 )
 
 func main() {
-	stateDir := flag.String("statedir", "", "diretório onde as fotos do estado estão")
-	candidaturesBucket := flag.String("candidatesbucket", "", "bucket onde estão as as candidaturas")
-	picturesBucket := flag.String("picturesbucket", "", "bucket onde as fotos devem ser salvas")
+	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")
+	candidaturesBucket := flag.String("candidatesDir", "", "bucket onde estão as as candidaturas")
+	picturesBucket := flag.String("outDir", "", "bucket onde as fotos devem ser salvas")
 	flag.Parse()
 	if *stateDir == "" {
 		log.Fatal("informe o diretório onde as fotos do estão estão")
