@@ -30,12 +30,16 @@ func main() {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
 	err = filepath.Walk(*stateDir, func(path string, info os.FileInfo, err error) error {
-		//candidateSequencialCode := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		if path != *stateDir {
-			if strings.Contains(*candidatesDir, "gs://") { // candidatures on GCS
+			if strings.Contains(*candidatesDir, "gs://") { // using GCS
 				bucket, filePathOnGCS := getBucketAndFilePath(*candidatesDir, path)
-				fmt.Println(gcsClient)
-				fmt.Println(bucket, filePathOnGCS)
+				if gcsClient.FileExists(bucket, filePathOnGCS) {
+
+				} else {
+					// TODO append to file
+				}
+			} else {
+				// TODO implement for local
 			}
 		}
 		return nil
