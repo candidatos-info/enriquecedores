@@ -249,11 +249,11 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 	}
 	for {
 		if cceResponse.Err != "" {
-			log.Printf("CCE foi para status IDLE com erro %s\n", cceResponse.Err)
+			log.Printf("enriquecedor de candidaturas foi para status IDLE com erro %s\n", cceResponse.Err)
 			break
 		}
 		if cceResponse.Status >= statusHashing { // passou do status da coleta (status >= 2)
-			log.Println("CCE iniciou processamento do arquivo")
+			log.Println("enriquecedor de candidaturas iniciou processamento do arquivo")
 			break
 		}
 		res, err = client.Do(req)
