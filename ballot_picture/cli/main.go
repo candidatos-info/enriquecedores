@@ -2,7 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -19,5 +23,16 @@ func main() {
 	if *picturesBucket == "" {
 		log.Fatal("informe o bucket onde as fotos devem ser salvs")
 	}
-	// TODO implementar script de enriquecimento
+	err := filepath.Walk(*stateDir, func(path string, info os.FileInfo, err error) error {
+		if path != *stateDir {
+			fileName := filepath.Base(path)
+			candidateSequencialCode := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			possibleCandidatureFile := fmt.Sprintf("%s/%s.json", *candidaturesBucket, candidateSequencialCode)
+			fmt.Println(possibleCandidatureFile)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("falha ao percorrer arquivos de diretótio %s, erro %q", *stateDir, err)
+	}
 }
