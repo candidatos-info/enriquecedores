@@ -1,9 +1,9 @@
 import sys 
 import re
 
- """This script get USER_NAME and PASSWORD environtment
- variables used on app engine from Github Secrets and
- replace on app.yaml."""
+"""This script get USER_NAME and PASSWORD environtment
+variables used on app engine from Github Secrets and
+replace on app.yaml."""
 
 app_engine_file = "app.yaml"
 
