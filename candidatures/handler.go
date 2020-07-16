@@ -1,4 +1,4 @@
-package cce
+package candidatures
 
 import (
 	"archive/zip"
