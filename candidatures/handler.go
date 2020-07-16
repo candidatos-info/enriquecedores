@@ -238,7 +238,7 @@ func (h *Handler) saveCandidatesOnGCS(candidates []*descritor.Candidatura) error
 		if err != nil {
 			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
 		}
-		pathOnGCS := fmt.Sprintf("%d-%s.zip", h.ElectionYear, c.SequencialCandidato)
+		pathOnGCS := fmt.Sprintf("%s/%s.zip", c.UF, c.SequencialCandidato) // the complete path is ${BUCKET}/${STATE}/${SEQUENCIAL_CANDIDATE}.zip
 		bucket := strings.ReplaceAll(h.CandidaturesPath, "gs://", "")
 		err = try.Do(func(attempt int) (bool, error) {
 			return attempt < maxAttempts, h.client.Upload(b, bucket, pathOnGCS)
