@@ -46,3 +46,11 @@ func (gcs *GSCClient) Upload(b []byte, bucket, path string) error {
 	}
 	return nil
 }
+
+// FileExists checks if file exists. If file exists
+// it returns true, else false
+func (gcs *GSCClient) FileExists(bucket, fileName string) bool {
+	handle := gcs.client.Bucket(bucket).Object(fileName)
+	_, err := handle.NewReader(context.Background())
+	return err == nil
+}
