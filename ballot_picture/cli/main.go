@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/candidatos-info/enriquecedores/filestorage"
 )
 
 func main() {
@@ -23,12 +25,19 @@ func main() {
 	if *picturesBucket == "" {
 		log.Fatal("informe o bucket onde as fotos devem ser salvs")
 	}
-	err := filepath.Walk(*stateDir, func(path string, info os.FileInfo, err error) error {
+	gcsClient, err := filestorage.NewGCSClient()
+	if err != nil {
+		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
+	}
+	err = filepath.Walk(*stateDir, func(path string, info os.FileInfo, err error) error {
 		if path != *stateDir {
 			fileName := filepath.Base(path)
+			filepath.VolumeName()
 			candidateSequencialCode := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-			possibleCandidatureFile := fmt.Sprintf("%s/%s.json", *candidaturesBucket, candidateSequencialCode)
-			fmt.Println(possibleCandidatureFile)
+			possibleCandidatureFile := fmt.Sprintf("%s/%s.zip", *candidaturesBucket, candidateSequencialCode)
+			if gcsClient.FileExists(possibleCandidatureFile) {
+
+			}
 		}
 		return nil
 	})
