@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/candidatos-info/enriquecedores/cce"
+	"github.com/candidatos-info/enriquecedores/candidatures"
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -35,7 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
-	cceHandler := cce.New(baseDir, gcsClient)
+	cceHandler := candidatures.New(baseDir, gcsClient)
 	e.POST("/cce", cceHandler.Post)
 	e.GET("/cce", cceHandler.Get)
 	log.Println("server online at ", port)

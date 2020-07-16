@@ -1,4 +1,4 @@
-package cce
+package candidatures
 
 import (
 	"archive/zip"
@@ -79,7 +79,8 @@ var (
 )
 
 const (
-	maxAttempts = 5
+	maxAttempts              = 5
+	candidaturesEnrichPrefix = "candidatures_"
 )
 
 // Handler is a struct to hold important data for this package
@@ -95,13 +96,13 @@ type Handler struct {
 	client           *filestorage.GSCClient
 }
 
-// struct used to pass year and source URL to CCE on post request
+// struct used to pass year and source URL on post request
 type postRequest struct {
 	Year      int    `json:"year"`
 	SourceURL string `json:"source_url"`
 }
 
-// New returns a new CCE handler
+// New returns a new handler
 func New(sourceLocalPath string, client *filestorage.GSCClient) *Handler {
 	return &Handler{
 		CandidaturesPath: sourceLocalPath,
@@ -119,20 +120,20 @@ func (h *Handler) post(in *postRequest) {
 	h.ElectionYear = in.Year
 	h.SourceURL = in.SourceURL
 	h.Status = status.Collecting
-	log.Println("CCE Status [ COLLECTING ]")
-	h.SourceLocalPath = fmt.Sprintf("cce_%s", path.Base(h.SourceURL))
-	f, err := os.Create(h.SourceLocalPath)
+	log.Println("ENRIQUECEDOR DE CANDIDATURAS Status [ COLLECTING ]")
+	f, err := ioutil.TempFile("", fmt.Sprintf("%s_%s", candidaturesEnrichPrefix, path.Base(h.SourceURL)))
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha durante a criação dos arquivos zip com nome %s, erro: %q", h.SourceLocalPath, err), h)
 		return
 	}
+	h.SourceLocalPath = f.Name()
 	buf, err := donwloadFile(h.SourceURL, f)
 	if err != nil {
 		handleError(fmt.Sprintf("ocorreu uma falha ao fazer o download dos arquivos csv pelo link %s, errro: %q", h.SourceURL, err), h)
 		return
 	}
 	h.Status = status.Hashing
-	log.Println("CCE Status [ HASHING ]")
+	log.Println("ENRIQUECEDOR DE CANDIDATURAS Status [ HASHING ]")
 	ha, err := hash(buf)
 	h.SourceFileHash = ha
 	if err != nil {
@@ -161,7 +162,7 @@ func (h *Handler) post(in *postRequest) {
 		return
 	}
 	h.Status = status.Processing
-	log.Println("CCE Status [ PROCESSING ]")
+	log.Println("ENRIQUECEDOR DE CANDIDATURAS Status [ PROCESSING ]")
 	downloadedFiles, err := unzipDownloadedFiles(buf, h.UnzippedFilesDir)
 	if err != nil {
 		handleError(fmt.Sprintf("falha ao descomprimir arquivos baixados, erro %q", err), h)
@@ -214,9 +215,12 @@ func (h *Handler) post(in *postRequest) {
 	if err = os.RemoveAll(unzipDestination); err != nil {
 		handleError(fmt.Sprintf("falha ao remover diretorio temporario criado %s, erro %q", unzipDestination, err), h)
 	}
+	if err = os.RemoveAll(f.Name()); err != nil {
+		handleError(fmt.Sprintf("falha ao remover arquivo baixado %s, erro %q", f.Name(), err), h)
+	}
 	h.Status = status.Idle
 	h.Err = ""
-	log.Println("CCE Status [ IDLE ]")
+	log.Println("ENRIQUECEDOR DE CANDIDATURAS Status [ IDLE ]")
 }
 
 // save candidates on gcs
@@ -473,7 +477,7 @@ func handleError(message string, h *Handler) {
 	log.Println(message)
 	h.Err = message
 	h.Status = status.Idle
-	log.Println("CCE Status [ IDLE ]")
+	log.Println("ENRIQUECEDOR DE CANDIDATURAS Status [ IDLE ]")
 }
 
 // download a file and writes on the given writer
