@@ -36,7 +36,7 @@ func main() {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
 	logFileName := fmt.Sprintf("%s.txt", filepath.Base(*stateDir))
-	logErrorFile, err := os.OpenFile(logFileName, os.O_APPEND|os.O_WRONLY, 0644)
+	logErrorFile, err := os.Create(logFileName) //.OpenFile(logFileName, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("falha ao criar arquivo de fotos com falha %s, erro %q", logFileName, err)
 	}
@@ -47,7 +47,7 @@ func main() {
 			fileExtension := filepath.Ext(fileName)
 			sequencialCandidate := strings.TrimSuffix(fileName, fileExtension)
 			candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
-			if strings.Contains(*candidatesDir, "gs://") { // using GCS
+			if strings.HasPrefix(*candidatesDir, "gs://") { // using GCS
 				bucket := strings.ReplaceAll(*candidatesDir, "gs://", "")
 				if gcsClient.FileExists(bucket, candidatureFilePath) {
 					picturePathOnGCS := fmt.Sprintf("%s%s", sequencialCandidate, fileExtension)
@@ -66,7 +66,8 @@ func main() {
 						// TODO save pictures localy
 					}
 				} else {
-					newLine := fmt.Sprintf("%s\n", fileName)
+					log.Printf("código %s não encontrado no GCS\n", sequencialCandidate)
+					newLine := fmt.Sprintf("%s\n", sequencialCandidate)
 					if _, err := logErrorFile.WriteString(newLine); err != nil {
 						return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logFileName, err)
 					}
