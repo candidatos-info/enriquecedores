@@ -10,7 +10,7 @@ require (
 	github.com/gocarina/gocsv v0.0.0-20200330101823-46266ca37bd3
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
-	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2 // indirect
+	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2
 	github.com/valyala/fasttemplate v1.2.0 // indirect
 	golang.org/x/text v0.3.3
 	gopkg.in/matryer/try.v1 v1.0.0-20150601225556-312d2599e12e

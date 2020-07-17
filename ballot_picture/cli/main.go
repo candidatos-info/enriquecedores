@@ -3,12 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
+	"github.com/matryer/try"
+)
+
+const (
+	maxAttempts = 5 // number of times to retry
 )
 
 func main() {
@@ -29,14 +35,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
+	logFileName := fmt.Sprintf("%s.txt", filepath.Base(*stateDir))
+	logErrorFile, err := os.OpenFile(logFileName, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("falha ao criar arquivo de fotos com falha %s, erro %q", logFileName, err)
+	}
+	defer logErrorFile.Close()
 	err = filepath.Walk(*stateDir, func(path string, info os.FileInfo, err error) error {
 		if path != *stateDir {
+			fileName := filepath.Base(path)
+			fileExtension := filepath.Ext(fileName)
+			sequencialCandidate := strings.TrimSuffix(fileName, fileExtension)
+			candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
 			if strings.Contains(*candidatesDir, "gs://") { // using GCS
-				bucket, filePathOnGCS := getBucketAndFilePath(*candidatesDir, path)
-				if gcsClient.FileExists(bucket, filePathOnGCS) {
-
+				bucket := strings.ReplaceAll(*candidatesDir, "gs://", "")
+				if gcsClient.FileExists(bucket, candidatureFilePath) {
+					picturePathOnGCS := fmt.Sprintf("%s%s", sequencialCandidate, fileExtension)
+					b, err := ioutil.ReadFile(path)
+					if err != nil {
+						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
+					}
+					if strings.Contains(*picturesDir, "gs://") { // save pictures on gcs
+						err = try.Do(func(attempt int) (bool, error) {
+							return attempt < maxAttempts, gcsClient.Upload(b, bucket, picturePathOnGCS)
+						})
+						if err != nil {
+							return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", picturePathOnGCS, bucket, err)
+						}
+					} else {
+						// TODO save pictures localy
+					}
 				} else {
-					// TODO append to file
+					newLine := fmt.Sprintf("%s\n", fileName)
+					if _, err := logErrorFile.WriteString(newLine); err != nil {
+						return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logFileName, err)
+					}
 				}
 			} else {
 				// TODO implement for local
@@ -47,13 +80,4 @@ func main() {
 	if err != nil {
 		log.Fatalf("falha ao percorrer arquivos de diretótio %s, erro %q", *stateDir, err)
 	}
-}
-
-func getBucketAndFilePath(candidatesDir, path string) (string, string) {
-	elements := strings.Split(candidatesDir, "/")
-	electionYear := elements[3]
-	bucket := elements[2]
-	fileName := filepath.Base(path)
-	sequencialCandidate := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	return bucket, fmt.Sprintf("%s/%s.zip", electionYear, sequencialCandidate)
 }
