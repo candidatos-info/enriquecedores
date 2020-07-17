@@ -36,7 +36,7 @@ func main() {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
 	logFileName := fmt.Sprintf("%s.txt", filepath.Base(*stateDir))
-	logErrorFile, err := os.Create(logFileName) //.OpenFile(logFileName, os.O_APPEND|os.O_WRONLY, 0644)
+	logErrorFile, err := os.Create(logFileName)
 	if err != nil {
 		log.Fatalf("falha ao criar arquivo de fotos com falha %s, erro %q", logFileName, err)
 	}
