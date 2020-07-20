@@ -19,8 +19,8 @@ const (
 
 func main() {
 	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")
-	candidatesDir := flag.String("candidatesDir", "", "local onde estão as as candidaturas") // Se for para usar o gcs usar gs://BUCKET/ANO, se for local basta passar o path
-	picturesDir := flag.String("outDir", "", "local onde as fotos devem ser salvas")         // Se for para usar o gcs usar gs://BUCKET/ANO, se for local basta passar o path
+	candidatesDir := flag.String("candidatesDir", "", "local onde estão as as candidaturas") // Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
+	picturesDir := flag.String("outDir", "", "local onde as fotos devem ser salvas")         // Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
 	flag.Parse()
 	if *stateDir == "" {
 		log.Fatal("informe o diretório onde as fotos do estão estão")
@@ -50,18 +50,18 @@ func main() {
 			if strings.HasPrefix(*candidatesDir, "gs://") { // using GCS
 				bucket := strings.ReplaceAll(*candidatesDir, "gs://", "")
 				if gcsClient.FileExists(bucket, candidatureFilePath) {
-					picturePathOnGCS := fmt.Sprintf("%s%s", sequencialCandidate, fileExtension)
 					b, err := ioutil.ReadFile(path)
 					if err != nil {
 						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
 					}
 					if strings.Contains(*picturesDir, "gs://") { // save pictures on gcs
 						err = try.Do(func(attempt int) (bool, error) {
-							return attempt < maxAttempts, gcsClient.Upload(b, bucket, picturePathOnGCS)
+							return attempt < maxAttempts, gcsClient.Upload(b, bucket, fileName)
 						})
 						if err != nil {
-							return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", picturePathOnGCS, bucket, err)
+							return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", fileName, bucket, err)
 						}
+						log.Printf("saved file [ %s ]\n", fileName)
 					} else {
 						// TODO save pictures localy
 					}
