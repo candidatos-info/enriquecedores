@@ -11,9 +11,9 @@ import (
 )
 
 func main() {
-	baseDir := os.Getenv("CCE_BASE_DIR")
+	baseDir := os.Getenv("CANDIDATURES_BASE_DIR")
 	if baseDir == "" {
-		log.Fatal("missing CCE_BASE_DIR environment variable")
+		log.Fatal("missing CANDIDATURES_BASE_DIR environment variable")
 	}
 	basicAuthUserName := os.Getenv("USER_NAME")
 	if basicAuthUserName == "" {
@@ -36,8 +36,8 @@ func main() {
 		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
 	}
 	cceHandler := candidatures.New(baseDir, gcsClient)
-	e.POST("/cce", cceHandler.Post)
-	e.GET("/cce", cceHandler.Get)
+	e.POST("/candidatures", cceHandler.Post)
+	e.GET("/candidatures", cceHandler.Get)
 	log.Println("server online at ", port)
 	log.Fatal(e.Start(":" + port))
 }

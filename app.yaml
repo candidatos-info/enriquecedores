@@ -1,8 +1,7 @@
 runtime: go113 
 
 env_variables:
-  CCE_BASE_DIR: .
-  FILES_URL: http://agencia.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_%d.zip
+  CANDIDATURES_BASE_DIR: .
   PORT: 8080
   PASSWORD: ##PASSWORD 
   USER_NAME: ##USER_NAME
