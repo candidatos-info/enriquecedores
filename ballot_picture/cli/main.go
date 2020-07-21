@@ -63,7 +63,15 @@ func main() {
 						}
 						log.Printf("saved file [ %s ]\n", fileName)
 					} else {
-						// TODO save pictures localy
+						path := fmt.Sprintf("%s/%s", *picturesDir, fileName)
+						filePicture, err := os.Create(path)
+						if err != nil {
+							return fmt.Errorf("falha ao criar arquivo de foto local %s, erro %q", path, err)
+						}
+						defer filePicture.Close()
+						if _, err := filePicture.Write(b); err != nil {
+							return fmt.Errorf("falha ao salvar foto no diretório de saída, erro %q", err)
+						}
 					}
 				} else {
 					log.Printf("código %s não encontrado no GCS\n", sequencialCandidate)
