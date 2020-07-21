@@ -68,6 +68,7 @@ func main() {
 						if err != nil {
 							return fmt.Errorf("falha ao criar arquivo de foto local %s, erro %q", path, err)
 						}
+						defer filePicture.Close()
 						if _, err := filePicture.Write(b); err != nil {
 							return fmt.Errorf("falha ao salvar foto no diretório de saída, erro %q", err)
 						}
