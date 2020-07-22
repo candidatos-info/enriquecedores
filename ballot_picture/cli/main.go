@@ -55,33 +55,43 @@ func main() {
 						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
 					}
 					if strings.Contains(*picturesDir, "gs://") { // save pictures on gcs
-						err = try.Do(func(attempt int) (bool, error) {
-							return attempt < maxAttempts, gcsClient.Upload(b, bucket, fileName)
-						})
-						if err != nil {
-							return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", fileName, bucket, err)
+						if err := uploadToGCS(b, bucket, fileName, gcsClient); err != nil {
+							return err
 						}
 						log.Printf("saved file [ %s ]\n", fileName)
 					} else {
-						path := fmt.Sprintf("%s/%s", *picturesDir, fileName)
-						filePicture, err := os.Create(path)
-						if err != nil {
-							return fmt.Errorf("falha ao criar arquivo de foto local %s, erro %q", path, err)
-						}
-						defer filePicture.Close()
-						if _, err := filePicture.Write(b); err != nil {
-							return fmt.Errorf("falha ao salvar foto no diretório de saída, erro %q", err)
+						if err := saveFileLocally(*picturesDir, fileName); err != nil {
+							return err
 						}
 					}
 				} else {
-					log.Printf("código %s não encontrado no GCS\n", sequencialCandidate)
-					newLine := fmt.Sprintf("%s\n", sequencialCandidate)
-					if _, err := logErrorFile.WriteString(newLine); err != nil {
-						return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logFileName, err)
+					if err := handlePictureNotRelated(sequencialCandidate, logErrorFile); err != nil {
+						return err
 					}
 				}
 			} else {
-				// TODO implement for local
+				filePath := fmt.Sprintf("%s/%s", *candidatesDir, fileName)
+				if _, err := os.Stat(filePath); err != nil {
+					b, err := ioutil.ReadFile(filePath)
+					if err != nil {
+						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
+					}
+					if strings.Contains(*picturesDir, "gs://") { // save pictures on gcs
+						bucket := strings.ReplaceAll(*picturesDir, "gs://", "")
+						if err := uploadToGCS(b, bucket, fileName, gcsClient); err != nil {
+							return err
+						}
+						log.Printf("saved file [ %s ]\n", fileName)
+					} else {
+						if err := saveFileLocally(*picturesDir, fileName); err != nil {
+							return err
+						}
+					}
+				} else {
+					if err := handlePictureNotRelated(sequencialCandidate, logErrorFile); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
@@ -89,4 +99,36 @@ func main() {
 	if err != nil {
 		log.Fatalf("falha ao percorrer arquivos de diretótio %s, erro %q", *stateDir, err)
 	}
+}
+
+func uploadToGCS(bytes []byte, bucket, filePath string, gcsClient *filestorage.GSCClient) error {
+	err := try.Do(func(attempt int) (bool, error) {
+		return attempt < maxAttempts, gcsClient.Upload(bytes, bucket, filePath)
+	})
+	if err != nil {
+		return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", filePath, bucket, err)
+	}
+	return nil
+}
+
+func saveFileLocally(dir, fileName string) error {
+	path := fmt.Sprintf("%s/%s", dir, fileName)
+	filePicture, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("falha ao criar arquivo de foto local %s, erro %q", path, err)
+	}
+	defer filePicture.Close()
+	if _, err := filePicture.Write(b); err != nil {
+		return fmt.Errorf("falha ao salvar foto no diretório de saída, erro %q", err)
+	}
+	return nil
+}
+
+func handlePictureNotRelated(sequencialCandidate string, logErrorFile *os.File) error {
+	log.Printf("código %s não encontrado no GCS\n", sequencialCandidate)
+	newLine := fmt.Sprintf("%s\n", sequencialCandidate)
+	if _, err := logErrorFile.WriteString(newLine); err != nil {
+		return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logFileName, err)
+	}
+	return nil
 }
