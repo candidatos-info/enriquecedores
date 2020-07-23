@@ -34,6 +34,8 @@ var (
 	}
 )
 
+// TODO refact these items
+
 // Candidato representa os dados de um candidato
 type Candidato struct {
 	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
@@ -93,7 +95,7 @@ func main() {
 			log.Fatal("informar o estado a ser enriquecido")
 		}
 		if err := process(*outDir, *state); err != nil {
-			log.Fatal("falha ao processar dados para enriquecimento do banco, erro %q", err)
+			log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 		}
 	}
 }
@@ -214,11 +216,12 @@ func process(outDir, state string) error {
 	if err := gocsv.UnmarshalFile(file, &c); err != nil {
 		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}
-	filteredCandidatures, err := removeDuplicates(c, path.Base(pathToOpen))
+	_, err = removeDuplicates(c, path.Base(pathToOpen))
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
 	// TODO iterate through lines and and check if legal is on databse
+	return nil
 }
 
 // it iterates through the candidates list and returns a map of
