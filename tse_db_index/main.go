@@ -24,6 +24,10 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
+const (
+	candidaturesCollection = "candidatures"
+)
+
 var (
 	rolesMap = map[string]descritor.Cargo{
 		"VEREADOR":      "LM",  // Legislativo Municipal
@@ -243,13 +247,26 @@ func process(outDir, state string, client *datastore.Client) error {
 
 func saveCandidatures(candidatures map[string]*descritor.Candidatura, client *datastore.Client) error {
 	for _, candidature := range candidatures {
-		// search for candidate using legal code
+		candidate, err := findCandidateByLegalCode(candidature.Candidato.CPF, client)
+		if err != nil {
+			return err
+		}
+		if candidate == nil { // do not exits
+			// TODO implement when exists
+		} else {
+			// TODO implement when do not exits
+		}
 	}
 	return nil
 }
 
-func findCandidateByLegalCode(legalCode string, client *datastore.Client) *tseutils.Candidate {
-	return nil
+func findCandidateByLegalCode(legalCode string, client *datastore.Client) (*tseutils.Candidate, error) {
+	var c []*tseutils.Candidate
+	query := datastore.NewQuery(candidaturesCollection).Filter("LegalCode =", legalCode)
+	if _, err := client.GetAll(context.Background(), query, &c); err != nil {
+		return nil, fmt.Errorf("falha ao buscar candidato por CPF, erro %q", err)
+	}
+	return c[0], nil
 }
 
 // it iterates through the candidates list and returns a map of
