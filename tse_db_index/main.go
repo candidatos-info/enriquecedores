@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/gocarina/gocsv"
 	"golang.org/x/text/encoding/charmap"
 )
@@ -80,6 +81,10 @@ func main() {
 	outDir := flag.String("outdir", "", "diretório de saída onde os arquivos descomprimidos serão colocados")
 	state := flag.String("estado", "", "estado para ser enriquecido")
 	flag.Parse()
+	gcsClient, err := filestorage.NewGCSClient()
+	if err != nil {
+		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
+	}
 	if *source != "" {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
@@ -94,7 +99,7 @@ func main() {
 		if *state == "" {
 			log.Fatal("informar o estado a ser enriquecido")
 		}
-		if err := process(*outDir, *state); err != nil {
+		if err := process(*outDir, *state, gcsClient); err != nil {
 			log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 		}
 	}
@@ -186,7 +191,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(outDir, state string) error {
+func process(outDir, state string, client *filestorage.GSCClient) error {
 	pathToOpen := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -216,11 +221,20 @@ func process(outDir, state string) error {
 	if err := gocsv.UnmarshalFile(file, &c); err != nil {
 		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}
-	_, err = removeDuplicates(c, path.Base(pathToOpen))
+	filteredCandidatures, err := removeDuplicates(c, path.Base(pathToOpen))
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	// TODO iterate through lines and and check if legal is on databse
+	if err := saveCandidatures(filteredCandidatures, client); err != nil {
+		return fmt.Errorf("falha ao salvar candidaturas no banco, erro %q", err)
+	}
+	return nil
+}
+
+func saveCandidatures(candidatures map[string]*descritor.Candidatura, client *filestorage.GSCClient) error {
+	for _, candidature := range candidatures {
+		// search for candidate using legal code
+	}
 	return nil
 }
 
