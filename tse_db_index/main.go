@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -16,8 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"github.com/candidatos-info/descritor"
-	"github.com/candidatos-info/enriquecedores/filestorage"
+	"github.com/candidatos-info/enriquecedores/tseutils"
 	"github.com/gocarina/gocsv"
 	"golang.org/x/text/encoding/charmap"
 )
@@ -80,11 +82,9 @@ func main() {
 	source := flag.String("coleta", "", "fonte do arquivo zip do TSE com as candidaturas") // pode ser um path usando protocolo file:// ou http://
 	outDir := flag.String("outdir", "", "diretório de saída onde os arquivos descomprimidos serão colocados")
 	state := flag.String("estado", "", "estado para ser enriquecido")
+	projectID := flag.String("projectid", "", "id do projeto no Google Cloud")
 	flag.Parse()
-	gcsClient, err := filestorage.NewGCSClient()
-	if err != nil {
-		log.Fatalf("falha ao criar cliente do Google Cloud Storage, erro %q", err)
-	}
+	ctx := context.Background()
 	if *source != "" {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
@@ -93,13 +93,23 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
+		if *projectID == "" {
+			log.Fatal("informe o id de projeto")
+		}
+		client, err := datastore.NewClient(ctx, *projectID)
+		if err != nil {
+			log.Fatalf("falha ao criar cliente do Datastore, erro %q", err)
+		}
+		if err != nil {
+			log.Fatalf("falha ao criar cliente de datastore: %v", err)
+		}
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
 		if *state == "" {
 			log.Fatal("informar o estado a ser enriquecido")
 		}
-		if err := process(*outDir, *state, gcsClient); err != nil {
+		if err := process(*outDir, *state, client); err != nil {
 			log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 		}
 	}
@@ -191,7 +201,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(outDir, state string, client *filestorage.GSCClient) error {
+func process(outDir, state string, client *datastore.Client) error {
 	pathToOpen := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -231,10 +241,14 @@ func process(outDir, state string, client *filestorage.GSCClient) error {
 	return nil
 }
 
-func saveCandidatures(candidatures map[string]*descritor.Candidatura, client *filestorage.GSCClient) error {
+func saveCandidatures(candidatures map[string]*descritor.Candidatura, client *datastore.Client) error {
 	for _, candidature := range candidatures {
 		// search for candidate using legal code
 	}
+	return nil
+}
+
+func findCandidateByLegalCode(legalCode string, client *datastore.Client) *tseutils.Candidate {
 	return nil
 }
 

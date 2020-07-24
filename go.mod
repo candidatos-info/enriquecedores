@@ -3,6 +3,7 @@ module github.com/candidatos-info/enriquecedores
 go 1.13
 
 require (
+	cloud.google.com/go/datastore v1.1.0
 	cloud.google.com/go/storage v1.10.0
 	github.com/candidatos-info/descritor v0.0.0-20200715141214-1d311ce610eb
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
