@@ -10,11 +10,11 @@ type Candidate struct {
 	BallotNumber int
 	LegalCode    string
 	Password     string
-	Candidatures []*CandidatureData
 }
 
 // CandidatureData is the data related to one election
 type CandidatureData struct {
+	CandidateLegalCode string
 	SquencialCandidate string
 	SiteURL            string
 	Facebook           string

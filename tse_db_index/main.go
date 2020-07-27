@@ -19,7 +19,7 @@ import (
 
 	"cloud.google.com/go/datastore"
 	"github.com/candidatos-info/descritor"
-	"github.com/candidatos-info/enriquecedores/tseutils"
+	"github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
 	"golang.org/x/text/encoding/charmap"
 )
