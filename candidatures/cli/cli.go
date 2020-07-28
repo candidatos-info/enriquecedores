@@ -101,19 +101,13 @@ func main() {
 }
 
 func collect(source, outDir string) error {
-	tempFile, err := ioutil.TempFile("", "temporaryFile")
-	if err != nil {
-		return fmt.Errorf("falha ao criar arquivo temporário para arquivo .zip, erro %q", err)
-	}
+	tempFile := new(bytes.Buffer)
 	bytes, err := donwloadFile(source, tempFile)
 	if err != nil {
 		return fmt.Errorf("falha ao fazer buscar arquivo com URL %s, erro %q", source, err)
 	}
 	if _, err := unzipDownloadedFiles(bytes, outDir); err != nil {
 		return fmt.Errorf("falha ao descomprimir arquivos baixados, erro %q", err)
-	}
-	if err = os.RemoveAll(tempFile.Name()); err != nil {
-		return fmt.Errorf("falha ao deletar arquivo temporário criado, erro %q", err)
 	}
 	return nil
 }
@@ -222,6 +216,7 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 		e.Start(fmt.Sprintf(":%d", port))
 	}()
 	fileURL := fmt.Sprintf("%s/static/%s", thisServerAddress, path.Base(zipName))
+	fmt.Println("URL ", fileURL)
 	pr := postRequest{
 		Year:      year,
 		SourceURL: fileURL,
@@ -269,6 +264,7 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 			return fmt.Errorf("falha ao fazer unmarshal de resposta do CCE, erro %q", err)
 		}
 	}
+	time.Sleep(time.Second * 20)
 	if err = os.Remove(zipName); err != nil {
 		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
 	}
