@@ -3,7 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
@@ -17,7 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo"
+	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
+	"github.com/gocarina/gocsv"
+	"golang.org/x/text/encoding/charmap"
 )
 
 const (
@@ -57,13 +59,9 @@ type cceStatusResponse struct {
 
 func main() {
 	source := flag.String("coleta", "", "fonte do arquivo zip")
-	outDir := flag.String("outdir", "", "diretório de arquivo zip a ser usado pelo CCE")
-	year := flag.Int("ano", 0, "ano da eleição")
+	outDir := flag.String("outdir", "", "diretório para colocar os arquivos .csv de candidaturas")
 	state := flag.String("estado", "", "estado a ser processado")
-	httpAddress := flag.String("remoteadd", "", "endereço web do servidor") // em produção passar o endereço ngrok, caso contrário passar o endereço local como http://localhost:9999
-	cceAddress := flag.String("cceadd", "", "endereço web do cce")
-	userName := flag.String("username", "", "user name para basic auth")
-	password := flag.String("password", "", "senha para basic auth")
+	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -73,28 +71,16 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
+		if *candidaturesDir == "" {
+			log.Fatal("informe local de armazenamento de candidaturas")
+		}
 		if *state == "" {
 			log.Fatal("informe estado a ser processado")
-		}
-		if *year == 0 {
-			log.Fatal("informe ano a ser processado")
 		}
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if *httpAddress == "" {
-			log.Fatal("informe o endereço privisionado para este provedor de arquivos")
-		}
-		if *cceAddress == "" {
-			log.Fatal("informe o endereço do CCE")
-		}
-		if *userName == "" {
-			log.Fatal("informe o login de basic auth")
-		}
-		if *password == "" {
-			log.Fatal("informe a senha de basic auth")
-		}
-		if err := process(*state, *outDir, *httpAddress, *cceAddress, *userName, *password, *year); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -187,7 +173,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, thisServerAddress, cceAddress, userName, password string, year int) error {
+func process(state, outDir, candidaturesDir string) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -201,73 +187,29 @@ func process(state, outDir, thisServerAddress, cceAddress, userName, password st
 	if pathToHandle == "" {
 		return fmt.Errorf("falha ao encontrar arquivo para estado %s", state)
 	}
-	fileBytes, err := ioutil.ReadFile(pathToHandle)
+	file, err := os.Open(pathToHandle)
 	if err != nil {
-		return fmt.Errorf("falha ao ler bytes de arquivo de estado %s, erro %q", pathToHandle, err)
+		return fmt.Errorf("falha ao abrir arquivo .csv descomprimido %s, erro %q", file.Name(), err)
 	}
-	zipName := fmt.Sprintf("%s/ARQUIVO_%s_%d.zip", outDir, state, year)
-	fileName := path.Base(pathToHandle)
-	if err = zipFile(fileBytes, zipName, fileName); err != nil {
-		return fmt.Errorf("falha ao comprimir arquivo %s, erro %q", pathToHandle, err)
+	defer file.Close()
+	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
+		// Enforcing reading the TSE zip file as ISO 8859-1 (latin 1)
+		r := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(in))
+		r.LazyQuotes = true
+		r.Comma = ';'
+		return r
+	})
+	var c []*tseutils.Candidatura
+	if err := gocsv.UnmarshalFile(file, &c); err != nil {
+		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}
-	go func() {
-		e := echo.New()
-		e.Static("/static", outDir)
-		e.Start(fmt.Sprintf(":%d", port))
-	}()
-	fileURL := fmt.Sprintf("%s/static/%s", thisServerAddress, path.Base(zipName))
-	fmt.Println("URL ", fileURL)
-	pr := postRequest{
-		Year:      year,
-		SourceURL: fileURL,
-	}
-	requestBodyBytes, err := json.Marshal(pr)
+	_, err = tseutils.RemoveDuplicates(c, path.Base(pathToHandle))
 	if err != nil {
-		return fmt.Errorf("falha ao pegar bytes do corpo da requisição, erro %q", err)
+		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	req, err := http.NewRequest("POST", cceAddress, bytes.NewBuffer(requestBodyBytes))
-	req.Header.Set("Content-type", "application/json")
-	req.SetBasicAuth(userName, password)
-	res, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return fmt.Errorf("código de resposta esperado era 200, tivemos %d", res.StatusCode)
-	}
-	req, err = http.NewRequest("GET", cceAddress, nil)
-	req.Header.Set("Content-type", "application/json")
-	req.SetBasicAuth(userName, password)
-	cceResponse := cceStatusResponse{
-		Status: statusCollecting,
-	}
-	for {
-		if cceResponse.Err != "" {
-			log.Printf("enriquecedor de candidaturas foi para status IDLE com erro %s\n", cceResponse.Err)
-			break
-		}
-		if cceResponse.Status >= statusHashing { // passou do status da coleta (status >= 2)
-			log.Println("enriquecedor de candidaturas iniciou processamento do arquivo")
-			break
-		}
-		res, err = client.Do(req)
-		if err != nil {
-			return fmt.Errorf("falha na requisição ao CCE, erro %q", err)
-		}
-		defer res.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("falha ao ler bytes do corpo da resposta do CCE, erro %q", err)
-		}
-		if err = json.Unmarshal(bodyBytes, &cceResponse); err != nil {
-			return fmt.Errorf("falha ao fazer unmarshal de resposta do CCE, erro %q", err)
-		}
-	}
-	time.Sleep(time.Second * 20)
-	if err = os.Remove(zipName); err != nil {
-		return fmt.Errorf("falha ao deletar arquivo zip criado, erro %q", err)
-	}
+	// TODO aggregate candidates by its cities
+	// TODO for each map of city marshal it and put into a file
+	// TODO send city files to GCS
 	return nil
 }
 
