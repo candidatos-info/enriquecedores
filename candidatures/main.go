@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -17,8 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
+	"github.com/matryer/try"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -27,6 +31,7 @@ const (
 	statusCollecting = 1    // integer to represent status collecting
 	statusIdle       = 0    // integer to represent status idle
 	statusHashing    = 2    // integer to represent status hashing
+	maxAttempts      = 5
 )
 
 var (
@@ -71,6 +76,10 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
+		client, err := filestorage.NewGCSClient()
+		if err != nil {
+			log.Fatal("falha ao criar cliente de GCS, erro %q", err)
+		}
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
 		}
@@ -80,7 +89,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir, client); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -173,7 +182,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, candidaturesDir string) error {
+func process(state, outDir, candidaturesDir string, client *filestorage.GSCClient) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -203,14 +212,63 @@ func process(state, outDir, candidaturesDir string) error {
 	if err := gocsv.UnmarshalFile(file, &c); err != nil {
 		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}
-	_, err = tseutils.RemoveDuplicates(c, path.Base(pathToHandle))
+	filteredCandidatures, err := tseutils.RemoveDuplicates(c, path.Base(pathToHandle))
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	// TODO aggregate candidates by its cities
-	// TODO for each map of city marshal it and put into a file
-	// TODO send city files to GCS
+	candidaturesByCity := grouCandidaturesByCity(filteredCandidatures)
+	for city, group := range candidaturesByCity {
+		groupBytes, err := json.Marshal(group)
+		if err != nil {
+			return fmt.Errorf("falha ao pegar bytes de grupo de candidaturas, erro %q", err)
+		}
+		fileName := fmt.Sprintf("%s_%s", state, city)
+		b, err := inMemoryZip(groupBytes, fileName)
+		if err != nil {
+			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
+		}
+		zipName := fmt.Sprintf("%s.zip", fileName)
+		bucket := strings.ReplaceAll(candidaturesDir, "gs://", "")
+		err = try.Do(func(attempt int) (bool, error) {
+			return attempt < maxAttempts, client.Upload(b, bucket, zipName)
+		})
+		if err != nil {
+			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", zipName, bucket, err)
+		}
+	}
 	return nil
+}
+
+// it does in memory compression of files
+func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever bytes, erro %q", err)
+	}
+	w := zip.NewWriter(buf)
+	defer w.Close()
+	f, err := w.Create(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("falha ao criar o zip em memória, err %q", err)
+	}
+	if _, err = f.Write(bytesToWrite); err != nil {
+		return nil, fmt.Errorf("falha ao escrever o zip em memória, err %q", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func grouCandidaturesByCity(candidatures map[string]*descritor.Candidatura) map[string]map[string]*descritor.Candidatura {
+	groups := make(map[string]map[string]*descritor.Candidatura)
+	for _, candidature := range candidatures {
+		found := groups[candidature.Municipio]
+		if found == nil {
+			groups[candidature.Municipio] = make(map[string]*descritor.Candidatura)
+			groups[candidature.Municipio][candidature.SequencialCandidato] = candidature
+		} else {
+			groups[candidature.Municipio][candidature.SequencialCandidato] = candidature
+		}
+	}
+	return groups
 }
 
 // it gets an array of bytes to write into a file called fileName that
