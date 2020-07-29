@@ -199,7 +199,7 @@ func process(state, outDir, candidaturesDir string) error {
 		r.Comma = ';'
 		return r
 	})
-	var c []*tseutils.Candidatura
+	var c []*tseutils.RegistroTSE
 	if err := gocsv.UnmarshalFile(file, &c); err != nil {
 		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}

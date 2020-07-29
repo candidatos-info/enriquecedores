@@ -38,8 +38,8 @@ type CandidatureData struct {
 	Proposal           string
 }
 
-// Candidato representa os dados de um candidato
-type Candidato struct {
+// CandidatoTSE representa os dados de um candidato
+type CandidatoTSE struct {
 	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
 	Municipio       string `csv:"NM_MUNICIPIO_NASCIMENTO"`       // Município de nascimento do candidato.
 	Nascimento      string `csv:"DT_NASCIMENTO"`                 // Data de nascimento do candidato.
@@ -54,8 +54,8 @@ type Candidato struct {
 	Email           string `csv:"NM_EMAIL"`                      // Email do candidato.
 }
 
-// Candidatura representa dados de uma candidatura
-type Candidatura struct {
+// RegistroTSE representa dados de uma candidatura
+type RegistroTSE struct {
 	Legislatura         int    `csv:"ANO_ELEICAO"`              // Ano eleitoral em que a candidatura foi homologada.
 	Cargo               string `csv:"DS_CARGO"`                 // Cargo sendo pleiteado pela candidatura.
 	UF                  string `csv:"SG_UF"`                    // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
@@ -74,5 +74,5 @@ type Candidatura struct {
 	Situacao            string `csv:"DS_SIT_TOT_TURNO"`         // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
 	Turno               int    `csv:"NR_TURNO"`                 // Campo que informa número do turno
 	SequencialCandidato string `csv:"SQ_CANDIDATO"`             // ID sequencial do candidato no sistema do TSE
-	Candidato
+	CandidatoTSE
 }
