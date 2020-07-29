@@ -1,8 +1,0 @@
-runtime: go113 
-
-env_variables:
-  CANDIDATURES_BASE_DIR: .
-  PORT: 8080
-  PASSWORD: ##PASSWORD 
-  USER_NAME: ##USER_NAME
-  
