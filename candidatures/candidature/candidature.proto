@@ -1,0 +1,46 @@
+syntax="proto3";
+
+package candidature;
+
+import "google/protobuf/timestamp.proto";
+
+message Candidature {
+    int64 Legislatura = 1;
+    int64 Cargo = 2;
+    string UF = 3;
+    string Municipio = 4;
+    int64 NumeroUrna = 5;
+    string NomeUrna = 6;
+    string Aptdao = 7;
+    string Deferimento = 8;
+    string TipoAgremiacao = 9;
+    int64 NumeroPartido = 10;
+    string LegendaPartido = 11;
+    string NomePartido = 12;
+    string NomeColigacao = 13;
+    string PartidosColigacao = 14;
+    bool DeclarouBens = 15;
+    string SituacaoPrimeiroTurno = 16;
+    string SituacaoSegundoTurno = 17;
+    string SequencialCandidato = 18;
+    Candidato candidato = 19;
+}
+
+message Candidato {
+    string UF = 1;
+    string Municipio = 2;
+    google.protobuf.Timestamp Nascimento = 3;
+    string TituloEleitoral = 4;
+    string Genero = 5;
+    string GrauInstrucao = 6;
+    string EstadoCivil = 7;
+    string Raca = 8;
+    string Ocupacao = 9;
+    string CPF = 10;
+    string Nome = 11;
+    string Email = 12;
+}
+
+message ProcessedCandidature {
+     map<string,Candidature> group = 1;
+}

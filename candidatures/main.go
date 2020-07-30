@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -19,9 +18,12 @@ import (
 	"time"
 
 	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/candidatures/candidature"
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/matryer/try"
 	"golang.org/x/text/encoding/charmap"
 )
@@ -78,7 +80,7 @@ func main() {
 	} else {
 		client, err := filestorage.NewGCSClient()
 		if err != nil {
-			log.Fatal("falha ao criar cliente de GCS, erro %q", err)
+			log.Fatalf("falha ao criar cliente de GCS, erro %q", err)
 		}
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
@@ -217,24 +219,60 @@ func process(state, outDir, candidaturesDir string, client *filestorage.GSCClien
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
 	candidaturesByCity := grouCandidaturesByCity(filteredCandidatures)
-	for city, group := range candidaturesByCity {
-		groupBytes, err := json.Marshal(group)
+	cities := len(candidaturesByCity)
+	log.Printf("cities to process [ %d ]\n", cities)
+	for city, _ := range candidaturesByCity {
+		if city != "SÃO PAULO" {
+			continue
+		}
+		m := jsonpb.Marshaler{}
+		mo := make(map[string]*candidature.Candidature)
+		mo["cu"] = &candidature.Candidature{
+			Legislatura: 2016,
+			UF:          "AL",
+		}
+		cu := candidature.ProcessedCandidature{}
+		cu.Group = make(map[string]*candidature.Candidature)
+		cu.Group["mo"] = &candidature.Candidature{
+			Legislatura: 2016,
+			UF:          "AL",
+		}
+		boits, err := proto.Marshal(&cu)
+		if err != nil {
+			log.Fatal("BUCETA ", err)
+		}
+		fmt.Println("!")
+		fmt.Println(string(boits))
+		fmt.Println("!")
+		//m.Marshal(nil, &cu)
+		s, err := m.MarshalToString(&cu)
+		if err != nil {
+			log.Fatal("PAAU ", err)
+		}
+		fmt.Println(s)
+		buffer := new(bytes.Buffer)
+		err = m.Marshal(buffer, &cu)
+		if err != nil {
+			log.Fatal("CUUUU ", err)
+		}
+		// groupBytes, err := json.Marshal(group)
 		if err != nil {
 			return fmt.Errorf("falha ao pegar bytes de grupo de candidaturas, erro %q", err)
 		}
 		fileName := fmt.Sprintf("%s_%s", state, city)
-		b, err := inMemoryZip(groupBytes, fileName)
-		if err != nil {
-			return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
-		}
+		// b, err := inMemoryZip(groupBytes, fileName)
+		// if err != nil {
+		// 	return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
+		// }
 		zipName := fmt.Sprintf("%s.zip", fileName)
 		bucket := strings.ReplaceAll(candidaturesDir, "gs://", "")
 		err = try.Do(func(attempt int) (bool, error) {
-			return attempt < maxAttempts, client.Upload(b, bucket, zipName)
+			return attempt < maxAttempts, client.Upload(boits, bucket, zipName)
 		})
 		if err != nil {
 			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", zipName, bucket, err)
 		}
+		log.Printf("sent city [ %s ]\n", city)
 	}
 	return nil
 }
@@ -257,6 +295,7 @@ func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// it group candidatures by cities
 func grouCandidaturesByCity(candidatures map[string]*descritor.Candidatura) map[string]map[string]*descritor.Candidatura {
 	groups := make(map[string]map[string]*descritor.Candidatura)
 	for _, candidature := range candidatures {
