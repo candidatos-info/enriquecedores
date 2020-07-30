@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 message Candidature {
     int64 Legislatura = 1;
-    int64 Cargo = 2;
+    string Cargo = 2;
     string UF = 3;
     string Municipio = 4;
     int64 NumeroUrna = 5;

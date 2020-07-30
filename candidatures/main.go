@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -22,7 +23,6 @@ import (
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/matryer/try"
 	"golang.org/x/text/encoding/charmap"
@@ -221,44 +221,54 @@ func process(state, outDir, candidaturesDir string, client *filestorage.GSCClien
 	candidaturesByCity := grouCandidaturesByCity(filteredCandidatures)
 	cities := len(candidaturesByCity)
 	log.Printf("cities to process [ %d ]\n", cities)
-	for city, _ := range candidaturesByCity {
-		if city != "SÃO PAULO" {
+	for city, group := range candidaturesByCity {
+		fmt.Println("citye ", city)
+		fmt.Println("SIZE ", len(group.Group))
+		cu, _ := json.Marshal(group)
+		fmt.Println(string(cu))
+		if city != "MACEIÓ" {
 			continue
 		}
-		m := jsonpb.Marshaler{}
-		mo := make(map[string]*candidature.Candidature)
-		mo["cu"] = &candidature.Candidature{
-			Legislatura: 2016,
-			UF:          "AL",
-		}
-		cu := candidature.ProcessedCandidature{}
-		cu.Group = make(map[string]*candidature.Candidature)
-		cu.Group["mo"] = &candidature.Candidature{
-			Legislatura: 2016,
-			UF:          "AL",
-		}
-		boits, err := proto.Marshal(&cu)
+		// if city != "SÃO PAULO" {
+		// 	continue
+		// }
+		// m := jsonpb.Marshaler{}
+		// mo := make(map[string]*candidature.Candidature)
+		// mo["cu"] = &candidature.Candidature{
+		// 	Legislatura: 2016,
+		// 	UF:          "AL",
+		// }
+		// cu := candidature.ProcessedCandidature{}
+		// cu.Group = make(map[string]*candidature.Candidature)
+		// cu.Group["mo"] = &candidature.Candidature{
+		// 	Legislatura: 2016,
+		// 	UF:          "AL",
+		// }
+		boits, err := proto.Marshal(group)
 		if err != nil {
 			log.Fatal("BUCETA ", err)
 		}
-		fmt.Println("!")
-		fmt.Println(string(boits))
-		fmt.Println("!")
-		//m.Marshal(nil, &cu)
-		s, err := m.MarshalToString(&cu)
-		if err != nil {
-			log.Fatal("PAAU ", err)
-		}
-		fmt.Println(s)
-		buffer := new(bytes.Buffer)
-		err = m.Marshal(buffer, &cu)
-		if err != nil {
-			log.Fatal("CUUUU ", err)
-		}
-		// groupBytes, err := json.Marshal(group)
-		if err != nil {
-			return fmt.Errorf("falha ao pegar bytes de grupo de candidaturas, erro %q", err)
-		}
+		// fmt.Println("============")
+		// fmt.Println(string(boits))
+		// fmt.Println("============")
+		// fmt.Println("!")
+		// fmt.Println(string(boits))
+		// fmt.Println("!")
+		// //m.Marshal(nil, &cu)
+		// s, err := m.MarshalToString(&cu)
+		// if err != nil {
+		// 	log.Fatal("PAAU ", err)
+		// }
+		// fmt.Println(s)
+		// buffer := new(bytes.Buffer)
+		// err = m.Marshal(buffer, &cu)
+		// if err != nil {
+		// 	log.Fatal("CUUUU ", err)
+		// }
+		// // groupBytes, err := json.Marshal(group)
+		// if err != nil {
+		// 	return fmt.Errorf("falha ao pegar bytes de grupo de candidaturas, erro %q", err)
+		// }
 		fileName := fmt.Sprintf("%s_%s", state, city)
 		// b, err := inMemoryZip(groupBytes, fileName)
 		// if err != nil {
@@ -296,15 +306,119 @@ func inMemoryZip(bytesToWrite []byte, fileName string) ([]byte, error) {
 }
 
 // it group candidatures by cities
-func grouCandidaturesByCity(candidatures map[string]*descritor.Candidatura) map[string]map[string]*descritor.Candidatura {
-	groups := make(map[string]map[string]*descritor.Candidatura)
-	for _, candidature := range candidatures {
-		found := groups[candidature.Municipio]
-		if found == nil {
-			groups[candidature.Municipio] = make(map[string]*descritor.Candidatura)
-			groups[candidature.Municipio][candidature.SequencialCandidato] = candidature
+func grouCandidaturesByCity(cands map[string]*descritor.Candidatura) map[string]*candidature.ProcessedCandidature {
+	groups := make(map[string]*candidature.ProcessedCandidature)
+	for _, c := range cands {
+		city := groups[c.Municipio]
+		if city == nil {
+			group := make(map[string]*candidature.Candidature)
+			group[c.SequencialCandidato] = &candidature.Candidature{
+				Legislatura:           int64(c.Legislatura),
+				Cargo:                 string(c.Cargo),
+				UF:                    c.UF,
+				Municipio:             c.Municipio,
+				NumeroUrna:            int64(c.NumeroUrna),
+				NomeUrna:              c.NomeUrna,
+				Aptdao:                c.Aptidao,
+				Deferimento:           c.Deferimento,
+				TipoAgremiacao:        c.TipoAgremiacao,
+				NumeroPartido:         int64(c.NumeroPartido),
+				LegendaPartido:        c.LegendaPartido,
+				NomePartido:           c.NomePartido,
+				NomeColigacao:         c.NomeColigacao,
+				PartidosColigacao:     c.PartidosColigacao,
+				DeclarouBens:          c.DeclarouBens,
+				SituacaoPrimeiroTurno: c.SituacaoPrimeiroTurno,
+				SituacaoSegundoTurno:  c.SituacaoSegundoTurno,
+				SequencialCandidato:   c.SequencialCandidato,
+				Candidato: &candidature.Candidato{
+					UF:              c.Candidato.UF,
+					Municipio:       c.Candidato.Municipio,
+					TituloEleitoral: c.Candidato.TituloEleitoral,
+					//TODO nascimento
+					Genero:        c.Candidato.Genero,
+					GrauInstrucao: c.Candidato.GrauInstrucao,
+					EstadoCivil:   c.Candidato.EstadoCivil,
+					Raca:          c.Candidato.Raca,
+					Ocupacao:      c.Candidato.Ocupacao,
+					CPF:           c.Candidato.CPF,
+					Nome:          c.Candidato.Nome,
+					Email:         c.Candidato.Email,
+				},
+			}
+			groups[c.Municipio] = &candidature.ProcessedCandidature{
+				Group: group,
+			}
 		} else {
-			groups[candidature.Municipio][candidature.SequencialCandidato] = candidature
+			// group := make(map[string]*candidature.Candidature)
+			// group[c.SequencialCandidato] = &candidature.Candidature{
+			// 	Legislatura:           int64(c.Legislatura),
+			// 	Cargo:                 string(c.Cargo),
+			// 	UF:                    c.UF,
+			// 	Municipio:             c.Municipio,
+			// 	NumeroUrna:            int64(c.NumeroUrna),
+			// 	NomeUrna:              c.NomeUrna,
+			// 	Aptdao:                c.Aptidao,
+			// 	Deferimento:           c.Deferimento,
+			// 	TipoAgremiacao:        c.TipoAgremiacao,
+			// 	NumeroPartido:         int64(c.NumeroPartido),
+			// 	LegendaPartido:        c.LegendaPartido,
+			// 	NomePartido:           c.NomePartido,
+			// 	NomeColigacao:         c.NomeColigacao,
+			// 	PartidosColigacao:     c.PartidosColigacao,
+			// 	DeclarouBens:          c.DeclarouBens,
+			// 	SituacaoPrimeiroTurno: c.SituacaoPrimeiroTurno,
+			// 	SituacaoSegundoTurno:  c.SituacaoSegundoTurno,
+			// 	SequencialCandidato:   c.SequencialCandidato,
+			// 	Candidato: &candidature.Candidato{
+			// 		UF:              c.Candidato.UF,
+			// 		Municipio:       c.Candidato.Municipio,
+			// 		TituloEleitoral: c.Candidato.TituloEleitoral,
+			// 		//TODO nascimento
+			// 		Genero:        c.Candidato.Genero,
+			// 		GrauInstrucao: c.Candidato.GrauInstrucao,
+			// 		EstadoCivil:   c.Candidato.EstadoCivil,
+			// 		Raca:          c.Candidato.Raca,
+			// 		Ocupacao:      c.Candidato.Ocupacao,
+			// 		CPF:           c.Candidato.CPF,
+			// 		Nome:          c.Candidato.Nome,
+			// 		Email:         c.Candidato.Email,
+			// 	},
+			// }
+			groups[c.Municipio].Group[c.SequencialCandidato] = &candidature.Candidature{
+				Legislatura:           int64(c.Legislatura),
+				Cargo:                 string(c.Cargo),
+				UF:                    c.UF,
+				Municipio:             c.Municipio,
+				NumeroUrna:            int64(c.NumeroUrna),
+				NomeUrna:              c.NomeUrna,
+				Aptdao:                c.Aptidao,
+				Deferimento:           c.Deferimento,
+				TipoAgremiacao:        c.TipoAgremiacao,
+				NumeroPartido:         int64(c.NumeroPartido),
+				LegendaPartido:        c.LegendaPartido,
+				NomePartido:           c.NomePartido,
+				NomeColigacao:         c.NomeColigacao,
+				PartidosColigacao:     c.PartidosColigacao,
+				DeclarouBens:          c.DeclarouBens,
+				SituacaoPrimeiroTurno: c.SituacaoPrimeiroTurno,
+				SituacaoSegundoTurno:  c.SituacaoSegundoTurno,
+				SequencialCandidato:   c.SequencialCandidato,
+				Candidato: &candidature.Candidato{
+					UF:              c.Candidato.UF,
+					Municipio:       c.Candidato.Municipio,
+					TituloEleitoral: c.Candidato.TituloEleitoral,
+					//TODO nascimento
+					Genero:        c.Candidato.Genero,
+					GrauInstrucao: c.Candidato.GrauInstrucao,
+					EstadoCivil:   c.Candidato.EstadoCivil,
+					Raca:          c.Candidato.Raca,
+					Ocupacao:      c.Candidato.Ocupacao,
+					CPF:           c.Candidato.CPF,
+					Nome:          c.Candidato.Nome,
+					Email:         c.Candidato.Email,
+				},
+			}
 		}
 	}
 	return groups
