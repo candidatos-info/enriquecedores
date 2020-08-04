@@ -223,12 +223,12 @@ func process(state, outDir, candidaturesDir string, client *filestorage.GSCClien
 	log.Printf("cities to process [ %d ]\n", cities)
 	for city, group := range candidaturesByCity {
 		fmt.Println("citye ", city)
+		if city != "SÃO PAULO" {
+			continue
+		}
 		fmt.Println("SIZE ", len(group.Group))
 		cu, _ := json.Marshal(group)
 		fmt.Println(string(cu))
-		if city != "MACEIÓ" {
-			continue
-		}
 		// if city != "SÃO PAULO" {
 		// 	continue
 		// }
@@ -248,6 +248,11 @@ func process(state, outDir, candidaturesDir string, client *filestorage.GSCClien
 		if err != nil {
 			log.Fatal("BUCETA ", err)
 		}
+		fileName := fmt.Sprintf("%s_%s", state, city)
+		// compressedBytes, err := inMemoryZip(boits, fileName)
+		// if err != nil {
+		// 	return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
+		// }
 		// fmt.Println("============")
 		// fmt.Println(string(boits))
 		// fmt.Println("============")
@@ -269,7 +274,6 @@ func process(state, outDir, candidaturesDir string, client *filestorage.GSCClien
 		// if err != nil {
 		// 	return fmt.Errorf("falha ao pegar bytes de grupo de candidaturas, erro %q", err)
 		// }
-		fileName := fmt.Sprintf("%s_%s", state, city)
 		// b, err := inMemoryZip(groupBytes, fileName)
 		// if err != nil {
 		// 	return fmt.Errorf("falha ao criar arquivo zip de candidatura, erro %q", err)
