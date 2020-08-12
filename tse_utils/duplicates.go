@@ -26,7 +26,8 @@ func RemoveDuplicates(candidates []*RegistroTSE, fileBeingHandled string) (map[s
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
 			fileLines++
-			nascimentoAsTime, err := time.Parse("02-01-2006", c.CandidatoTSE.Nascimento)
+			fmt.Println("NASCIMENTO ", c.CandidatoTSE.Nascimento)
+			nascimentoAsTime, err := time.Parse("02/01/2006", c.CandidatoTSE.Nascimento)
 			if err != nil {
 				return nil, fmt.Errorf("falha ao fazer parse de data de nascimento de candidato %s para time.Time, erro %q", c.CandidatoTSE.Nascimento, err)
 			}

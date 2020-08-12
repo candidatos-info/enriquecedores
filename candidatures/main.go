@@ -17,8 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/candidatos-info/descritor"
+	"github.com/candidatos-info/enriquecedores/filestorage"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
+	"github.com/golang/protobuf/proto"
+	"github.com/matryer/try"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -27,6 +31,7 @@ const (
 	statusCollecting = 1    // integer to represent status collecting
 	statusIdle       = 0    // integer to represent status idle
 	statusHashing    = 2    // integer to represent status hashing
+	maxAttempts      = 5
 )
 
 var (
@@ -71,6 +76,7 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
+		client := filestorage.NewGCSClient()
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
 		}
@@ -80,7 +86,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir, client); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -173,7 +179,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, candidaturesDir string) error {
+func process(state, outDir, candidaturesDir string, client filestorage.FileStorage) error {
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -203,14 +209,82 @@ func process(state, outDir, candidaturesDir string) error {
 	if err := gocsv.UnmarshalFile(file, &c); err != nil {
 		return fmt.Errorf("falha ao inflar slice de candidaturas usando arquivo csv %s, erro %q", file.Name(), err)
 	}
-	_, err = tseutils.RemoveDuplicates(c, path.Base(pathToHandle))
+	filteredCandidatures, err := tseutils.RemoveDuplicates(c, path.Base(pathToHandle))
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	// TODO aggregate candidates by its cities
-	// TODO for each map of city marshal it and put into a file
-	// TODO send city files to GCS
+	candidaturesByCity := grouCandidaturesByCity(filteredCandidatures)
+	cities := len(candidaturesByCity)
+	log.Printf("cities to process [ %d ]\n", cities)
+	for city, group := range candidaturesByCity {
+		b, err := proto.Marshal(group)
+		if err != nil {
+			return fmt.Errorf("falha ao serializar grupo de cidades, erro %q", err)
+		}
+		fileName := fmt.Sprintf("%s_%s", state, city)
+		zipName := fmt.Sprintf("%s.zip", fileName)
+		bucket := strings.ReplaceAll(candidaturesDir, "gs://", "")
+		err = try.Do(func(attempt int) (bool, error) {
+			return attempt < maxAttempts, client.Upload(b, bucket, zipName)
+		})
+		if err != nil {
+			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", zipName, bucket, err)
+		}
+		log.Printf("sent city [ %s ]\n", city)
+	}
 	return nil
+}
+
+// it group candidatures by cities
+func grouCandidaturesByCity(cands map[string]*descritor.Candidatura) map[string]*descritor.CandidaturasDeCidade {
+	groups := make(map[string]*descritor.CandidaturasDeCidade)
+	for _, c := range cands {
+		ca := &descritor.Candidatura{
+			Legislatura:           c.Legislatura,
+			Cargo:                 c.Cargo,
+			UF:                    c.UF,
+			Municipio:             c.Municipio,
+			NumeroUrna:            c.NumeroUrna,
+			NomeUrna:              c.NomeUrna,
+			Aptdao:                c.Aptdao,
+			Deferimento:           c.Deferimento,
+			TipoAgremiacao:        c.TipoAgremiacao,
+			NumeroPartido:         c.NumeroPartido,
+			LegendaPartido:        c.LegendaPartido,
+			NomePartido:           c.NomePartido,
+			NomeColigacao:         c.NomeColigacao,
+			PartidosColigacao:     c.PartidosColigacao,
+			DeclarouBens:          c.DeclarouBens,
+			SituacaoPrimeiroTurno: c.SituacaoPrimeiroTurno,
+			SituacaoSegundoTurno:  c.SituacaoSegundoTurno,
+			SequencialCandidato:   c.SequencialCandidato,
+			Candidato: &descritor.Candidato{
+				UF:              c.Candidato.UF,
+				Municipio:       c.Candidato.Municipio,
+				TituloEleitoral: c.Candidato.TituloEleitoral,
+				Nascimento:      c.Candidato.Nascimento,
+				Genero:          c.Candidato.Genero,
+				GrauInstrucao:   c.Candidato.GrauInstrucao,
+				EstadoCivil:     c.Candidato.EstadoCivil,
+				Raca:            c.Candidato.Raca,
+				Ocupacao:        c.Candidato.Ocupacao,
+				CPF:             c.Candidato.CPF,
+				Nome:            c.Candidato.Nome,
+				Email:           c.Candidato.Email,
+			},
+		}
+		city := groups[c.Municipio]
+		if city == nil {
+			group := make(map[string]*descritor.Candidatura)
+			group[c.SequencialCandidato] = ca
+			groups[c.Municipio] = &descritor.CandidaturasDeCidade{
+				Group: group,
+			}
+		} else {
+			groups[c.Municipio].Group[c.SequencialCandidato] = ca
+		}
+	}
+	return groups
 }
 
 // it gets an array of bytes to write into a file called fileName that
