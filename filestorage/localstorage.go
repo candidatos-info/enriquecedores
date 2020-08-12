@@ -17,7 +17,7 @@ func NewLocalStorage() FileStorage {
 
 // Upload gets and io.Reader, like a os.File, and uploads
 // its content to a bucket accoring with the given path
-func (gcs *localStorage) Upload(b []byte, bucket, path string) error {
+func (gcs *localStorage) Upload(b []byte, bucket, fileName string) error {
 	_, err := os.Stat(bucket) // checking if bucket exists
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(bucket, 0755)
@@ -25,9 +25,9 @@ func (gcs *localStorage) Upload(b []byte, bucket, path string) error {
 			return fmt.Errorf("falha ao criar diretório %s, erro %q", bucket, err)
 		}
 	}
-	name := fmt.Sprintf("%s/%s", bucket, path)
+	name := fmt.Sprintf("%s/%s", bucket, fileName)
 	if err := ioutil.WriteFile(name, b, 0644); err != nil {
-		return fmt.Errorf("falha ao salver arquivo %s no caminho %s, erro %q", path, name, err)
+		return fmt.Errorf("falha ao salver arquivo %s no caminho %s, erro %q", fileName, name, err)
 	}
 	return nil
 }
