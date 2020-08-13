@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/candidatos-info/descritor"
+	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
 // RemoveDuplicates iterates through the candidates list and returns a map of
@@ -25,21 +26,20 @@ func RemoveDuplicates(candidates []*RegistroTSE, fileBeingHandled string) (map[s
 		foundCandidate := candidatesMap[c.CPF]
 		if foundCandidate == nil { // candidate not present on map, add it
 			fileLines++
-			var candidateBirth time.Time
-			if c.CandidatoTSE.Nascimento != "" {
-				candidateBirth, err := time.Parse("02/01/2006", c.CandidatoTSE.Nascimento)
-				if err != nil {
-					return nil, fmt.Errorf("falha ao fazer parse da data de nascimento do candidato [%s] para o formato 02/01/2006, erro %q", c.CandidatoTSE.Nascimento, err)
-				}
-				_ = candidateBirth
+			nascimentoAsTime, err := time.Parse("02/01/2006", c.CandidatoTSE.Nascimento)
+			if err != nil {
+				return nil, fmt.Errorf("falha ao fazer parse de data de nascimento de candidato %s para time.Time, erro %q", c.CandidatoTSE.Nascimento, err)
 			}
+			s := int64(nascimentoAsTime.Second())
+			n := int32(nascimentoAsTime.Nanosecond())
+			nascimentoAsTimestamp := &timestamp.Timestamp{Seconds: s, Nanos: n}
 			newCandidate := &descritor.Candidatura{
+				Aptdao:              c.Aptidao,
 				Legislatura:         c.Legislatura,
 				Cargo:               rolesMap[c.Cargo],
 				UF:                  c.UF,
 				Municipio:           c.Municipio,
 				NomeUrna:            c.NomeUrna,
-				Aptidao:             c.Aptidao,
 				Deferimento:         c.Deferimento,
 				TipoAgremiacao:      c.TipoAgremiacao,
 				NumeroPartido:       c.NumeroPartido,
@@ -50,10 +50,10 @@ func RemoveDuplicates(candidates []*RegistroTSE, fileBeingHandled string) (map[s
 				PartidosColigacao:   c.PartidosColigacao,
 				DeclarouBens:        declaredPossessions[c.DeclarouBens],
 				SequencialCandidato: c.SequencialCandidato,
-				Candidato: descritor.Candidato{
+				Candidato: &descritor.Candidato{
 					UF:              c.CandidatoTSE.UF,
 					Municipio:       c.CandidatoTSE.Municipio,
-					Nascimento:      candidateBirth,
+					Nascimento:      nascimentoAsTimestamp,
 					TituloEleitoral: c.CandidatoTSE.TituloEleitoral,
 					Genero:          c.CandidatoTSE.Genero,
 					GrauInstrucao:   c.CandidatoTSE.GrauInstrucao,

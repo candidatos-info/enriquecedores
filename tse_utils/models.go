@@ -1,9 +1,7 @@
 package tseutils
 
-import "github.com/candidatos-info/descritor"
-
 var (
-	rolesMap = map[string]descritor.Cargo{
+	rolesMap = map[string]string{
 		"VEREADOR":      "LM",  // Legislativo Municipal
 		"VICE-PREFEITO": "VEM", // Vice Executivo Municipal
 		"PREFEITO":      "EM",  // Executivo Municipal
@@ -56,23 +54,23 @@ type CandidatoTSE struct {
 
 // RegistroTSE representa dados de uma candidatura
 type RegistroTSE struct {
-	Legislatura         int    `csv:"ANO_ELEICAO"`              // Ano eleitoral em que a candidatura foi homologada.
+	Legislatura         int64  `csv:"ANO_ELEICAO"`              // Ano eleitoral em que a candidatura foi homologada.
 	Cargo               string `csv:"DS_CARGO"`                 // Cargo sendo pleiteado pela candidatura.
 	UF                  string `csv:"SG_UF"`                    // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
 	Municipio           string `csv:"NM_UE"`                    // Município que ocorreu a eleição.
-	NumeroUrna          int    `csv:"NR_CANDIDATO"`             // Número do candidato na urna.
+	NumeroUrna          int64  `csv:"NR_CANDIDATO"`             // Número do candidato na urna.
 	NomeUrna            string `csv:"NM_URNA_CANDIDATO"`        // Nome do candidato na urna.
 	Aptidao             string `csv:"DS_SITUACAO_CANDIDATURA"`  // Aptidao da candidatura (podendo ser APTO ou INAPTO).
 	Deferimento         string `csv:"DS_DETALHE_SITUACAO_CAND"` // Situação do candidato (pondendo ser DEFERIDO ou INDEFERIDO).
 	TipoAgremiacao      string `csv:"TP_AGREMIACAO"`            // Indica o tipo de agremiação do candidato (podendo ser PARTIDO ISOLADO ou AGREMIAÇÃO).
-	NumeroPartido       int    `csv:"NR_PARTIDO"`               // Número do partido do candidato.
+	NumeroPartido       int64  `csv:"NR_PARTIDO"`               // Número do partido do candidato.
 	LegendaPartido      string `csv:"SG_PARTIDO"`               // Legenda do partido do candidato.
 	NomePartido         string `csv:"NM_PARTIDO"`               // Nome do partido do candidato.
 	NomeColigacao       string `csv:"NM_COLIGACAO"`             // Nome da coligação a qual o candidato pertence.
 	PartidosColigacao   string `csv:"DS_COMPOSICAO_COLIGACAO"`  // Partidos pertencentes à coligação do candidato.
 	DeclarouBens        string `csv:"ST_DECLARAR_BENS"`         // Flag que informa se o candidato declarou seus bens na eleição.s
 	Situacao            string `csv:"DS_SIT_TOT_TURNO"`         // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
-	Turno               int    `csv:"NR_TURNO"`                 // Campo que informa número do turno
+	Turno               int64  `csv:"NR_TURNO"`                 // Campo que informa número do turno
 	SequencialCandidato string `csv:"SQ_CANDIDATO"`             // ID sequencial do candidato no sistema do TSE
 	CandidatoTSE
 }
