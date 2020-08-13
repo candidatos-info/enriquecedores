@@ -76,7 +76,6 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
-		client := filestorage.NewGCSClient()
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
 		}
@@ -86,7 +85,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir, client); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir, true); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -179,7 +178,13 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, candidaturesDir string, client filestorage.FileStorage) error {
+func process(state, outDir, candidaturesDir string, prod bool) error {
+	var client filestorage.FileStorage
+	if prod {
+		client = filestorage.NewGCSClient()
+	} else {
+		client = filestorage.NewLocalStorage()
+	}
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -222,13 +227,12 @@ func process(state, outDir, candidaturesDir string, client filestorage.FileStora
 			return fmt.Errorf("falha ao serializar grupo de cidades, erro %q", err)
 		}
 		fileName := fmt.Sprintf("%s_%s", state, city)
-		zipName := fmt.Sprintf("%s.zip", fileName)
 		bucket := strings.ReplaceAll(candidaturesDir, "gs://", "")
 		err = try.Do(func(attempt int) (bool, error) {
-			return attempt < maxAttempts, client.Upload(b, bucket, zipName)
+			return attempt < maxAttempts, client.Upload(b, bucket, fileName)
 		})
 		if err != nil {
-			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", zipName, bucket, err)
+			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", fileName, bucket, err)
 		}
 		log.Printf("sent city [ %s ]\n", city)
 	}
