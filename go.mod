@@ -22,6 +22,7 @@ require (
 	golang.org/x/text v0.3.3
 	golang.org/x/tools v0.0.0-20200811215021-48a8ffc5b207 // indirect
 	google.golang.org/genproto v0.0.0-20200812160120-2e714abc8b50 // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/matryer/try.v1 v1.0.0-20150601225556-312d2599e12e
 	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
 )
