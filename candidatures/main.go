@@ -67,6 +67,7 @@ func main() {
 	outDir := flag.String("outdir", "", "diretório para colocar os arquivos .csv de candidaturas")
 	state := flag.String("estado", "", "estado a ser processado")
 	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
+	production := flag.Bool("producao", false, "informe se deve salvar os arquivos localmente ou na nuvem")
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -85,7 +86,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir, true); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir, *production); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
