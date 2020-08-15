@@ -2,14 +2,14 @@
 
 Para coletar os arquivos necessários ao enriquecimento use o seguinte comando:
 ```
-$ go run cli.go --coleta=${URL} --outdir=${OUTDIR}
+$ go run cli.go --collect=${URL} --outdir=${OUTDIR}
 ```
 
 Onde a URL é a fonte dos arquivos .zip, pondendo ser passado uma URL usando protocolo HTTP(S) ou file, e OUTDIR é o path do diretório para onde os arquivos coletados serão colocados.
 
 Após a etapa de coleta devemos executar o enriquecimento. Para executar o enriquecimento use o seguinte comando:
 ```
-go run main.go --candidaturesDir=${BUCKET} --estado=${ESTADO} --outdir=${OUTDIR} --producao=${FLAG}
+go run main.go --candidaturesDir=${BUCKET} --state=${ESTADO} --outdir=${OUTDIR} --prod=${FLAG}
 ```
 
 Onde: 
