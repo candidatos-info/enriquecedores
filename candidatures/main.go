@@ -63,11 +63,11 @@ type cceStatusResponse struct {
 }
 
 func main() {
-	source := flag.String("coleta", "", "fonte do arquivo zip")
+	source := flag.String("collect", "", "fonte do arquivo zip")
 	outDir := flag.String("outdir", "", "diretório para colocar os arquivos .csv de candidaturas")
-	state := flag.String("estado", "", "estado a ser processado")
+	state := flag.String("state", "", "estado a ser processado")
 	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
-	production := flag.Bool("producao", false, "informe se deve salvar os arquivos localmente ou na nuvem")
+	production := flag.Bool("prod", false, "informe se deve salvar os arquivos localmente ou na nuvem")
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
