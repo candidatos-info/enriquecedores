@@ -51,7 +51,7 @@ func TestProcess(t *testing.T) {
 	if err = os.MkdirAll(dirToSaveCandidatures, 0755); err != nil {
 		t.Errorf("expected error nil when creating a test directory [%s], got %q", dirToSaveCandidatures, err)
 	}
-	if err := process(stateToTest, outputDir, dirToSaveCandidatures, false); err != nil {
+	if err := process(stateToTest, outputDir, dirToSaveCandidatures); err != nil {
 		t.Errorf("expected err nil when processing files, got %q", err)
 	}
 	expectedCityToHaveAfterProcessment := "ARACAJU"
