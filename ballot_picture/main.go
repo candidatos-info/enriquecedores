@@ -20,7 +20,6 @@ const (
 func main() {
 	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")                             // fotos estão em um path local
 	destinationDir := flag.String("destinationDir", "", "local onde ficam os arquivos de candidaturas e fotos") // OBS: arquivos de candidaturas e fotos ficam armazenados no mesmo diretório/bucket. Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
-	production := flag.Bool("prod", false, "informe se deve salvar os arquivos localmente ou na nuvem")
 	flag.Parse()
 	if *stateDir == "" {
 		log.Fatal("informe o diretório onde as fotos do estão estão")
@@ -33,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("falha ao criar arquivo de fotos com falha %s, erro %q", logFileName, err)
 	}
-	if err := process(*stateDir, *destinationDir, *production, logErrorFile); err != nil {
+	if err := process(*stateDir, *destinationDir, logErrorFile); err != nil {
 		log.Fatalf("falha ao enriquecer fotos, erro %q", err)
 	}
 	defer logErrorFile.Close()
@@ -42,9 +41,9 @@ func main() {
 // it gets as argument the local path where pictures to be processed are placed (stateDir)
 // and the storageDir which is the place where candidatures are placed
 // and where the pictures will be placed too.
-func process(stateDir, storageDir string, production bool, logErrorFile *os.File) error {
+func process(stateDir, storageDir string, logErrorFile *os.File) error {
 	var filestorageClient filestorage.FileStorage
-	if production {
+	if strings.HasPrefix(storageDir, "gs://") {
 		filestorageClient = filestorage.NewGCSClient()
 	} else {
 		filestorageClient = filestorage.NewLocalStorage()
@@ -55,7 +54,7 @@ func process(stateDir, storageDir string, production bool, logErrorFile *os.File
 			fileExtension := filepath.Ext(fileName)
 			sequencialCandidate := strings.TrimSuffix(fileName, fileExtension)
 			candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
-			if strings.HasPrefix(storageDir, "gs://") { // using GCS (flag PROD true)
+			if strings.HasPrefix(storageDir, "gs://") { // using GCS
 				bucket := strings.ReplaceAll(storageDir, "gs://", "")
 				if filestorageClient.FileExists(bucket, candidatureFilePath) {
 					b, err := ioutil.ReadFile(path)
@@ -70,12 +69,12 @@ func process(stateDir, storageDir string, production bool, logErrorFile *os.File
 						return err
 					}
 				}
-			} else { // (flag PROD false)
-				filePath := fmt.Sprintf("%s/%s", storageDir, fileName)
-				if _, err := os.Stat(filePath); err != nil {
-					b, err := ioutil.ReadFile(filePath)
+			} else {
+				candidatureLocalPath := fmt.Sprintf("%s/%s.zip", storageDir, strings.TrimSuffix(fileName, filepath.Ext(fileName)))
+				if _, err := os.Stat(candidatureLocalPath); err == nil {
+					b, err := ioutil.ReadFile(candidatureLocalPath)
 					if err != nil {
-						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
+						return fmt.Errorf("falha ao ler arquivo %s, erro %q", candidatureLocalPath, err)
 					}
 					if err := saveFiles(b, storageDir, fileName, filestorageClient); err != nil {
 						return err
@@ -106,7 +105,7 @@ func saveFiles(bytes []byte, bucket, filePath string, filestorageClient filestor
 }
 
 func handlePictureNotRelated(sequencialCandidate string, logErrorFile *os.File) error {
-	log.Printf("código %s não encontrado no GCS\n", sequencialCandidate)
+	log.Printf("código [%s] não encontrado no diretório de candidaturas\n", sequencialCandidate)
 	newLine := fmt.Sprintf("%s\n", sequencialCandidate)
 	if _, err := logErrorFile.WriteString(newLine); err != nil {
 		return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logErrorFile.Name(), err)
