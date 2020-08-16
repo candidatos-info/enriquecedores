@@ -108,7 +108,7 @@ func handlePictureNotRelated(sequencialCandidate string, logErrorFile *os.File) 
 	log.Printf("código [%s] não encontrado no diretório de candidaturas\n", sequencialCandidate)
 	newLine := fmt.Sprintf("%s\n", sequencialCandidate)
 	if _, err := logErrorFile.WriteString(newLine); err != nil {
-		return fmt.Errorf("falha ao escrever que arquivo não encontrado no GCS (%s) no arquivo de log %s, erro %q", sequencialCandidate, logErrorFile.Name(), err)
+		return fmt.Errorf("falha ao escrever sequencial de candidato [%s] no arquivo de log [%s], erro %q", sequencialCandidate, logErrorFile.Name(), err)
 	}
 	return nil
 }
