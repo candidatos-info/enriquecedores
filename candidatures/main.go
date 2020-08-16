@@ -63,11 +63,10 @@ type cceStatusResponse struct {
 }
 
 func main() {
-	source := flag.String("coleta", "", "fonte do arquivo zip")
+	source := flag.String("sourceFile", "", "fonte do arquivo zip")
 	outDir := flag.String("outdir", "", "diretório para colocar os arquivos .csv de candidaturas")
-	state := flag.String("estado", "", "estado a ser processado")
+	state := flag.String("state", "", "estado a ser processado")
 	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
-	production := flag.Bool("producao", false, "informe se deve salvar os arquivos localmente ou na nuvem")
 	flag.Parse()
 	if *source != "" {
 		if *outDir == "" {
@@ -86,7 +85,7 @@ func main() {
 		if *outDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir, *production); err != nil {
+		if err := process(*state, *outDir, *candidaturesDir); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -179,9 +178,9 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, candidaturesDir string, prod bool) error {
+func process(state, outDir, candidaturesDir string) error {
 	var client filestorage.FileStorage
-	if prod {
+	if strings.HasPrefix(candidaturesDir, "gs://") {
 		client = filestorage.NewGCSClient()
 	} else {
 		client = filestorage.NewLocalStorage()
