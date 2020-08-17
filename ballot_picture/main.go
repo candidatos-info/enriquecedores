@@ -18,8 +18,8 @@ const (
 )
 
 func main() {
-	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")                             // fotos estão em um path local
-	destinationDir := flag.String("destinationDir", "", "local onde ficam os arquivos de candidaturas e fotos") // OBS: arquivos de candidaturas e fotos ficam armazenados no mesmo diretório/bucket. Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
+	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")                     // fotos estão em um path local
+	destinationDir := flag.String("outDir", "", "local onde ficam os arquivos de candidaturas e fotos") // OBS: arquivos de candidaturas e fotos ficam armazenados no mesmo diretório/bucket. Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
 	flag.Parse()
 	if *stateDir == "" {
 		log.Fatal("informe o diretório onde as fotos do estão estão")
