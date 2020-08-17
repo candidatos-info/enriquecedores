@@ -2,19 +2,25 @@
 
 Para coletar os arquivos necessários ao enriquecimento use o seguinte comando:
 ```
-$ go run cli.go --coleta=${URL} --outdir=${OUTDIR}
+$ go run cli.go --sourceFile=${URL} --localDir=${OUTDIR}
 ```
 
-Onde a URL é a fonte dos arquivos .zip, pondendo ser passado uma URL usando protocolo HTTP(S) ou file, e OUTDIR é o path do diretório para onde os arquivos coletados serão colocados.
+Onde a URL é a fonte dos arquivos .zip, pondendo ser passado uma URL usando protocolo HTTP(S) ou file, e OUTDIR é o path do diretório para onde os arquivos coletados serão colocados localmente.
 
 Após a etapa de coleta devemos executar o enriquecimento. Para executar o enriquecimento use o seguinte comando:
 ```
-go run cli.go go run cli.go -estado=${ESTADO} -ano=${ANO} -outdir=${OUTDIR} -remoteadd=${REMOTE_ADD} -cceadd=${CCE_ADD} -username=${USERNAME} -password=${PASSWORD}
+go run main.go --outDir=${BUCKET} --state=${ESTADO} --localDir=${OUTDIR}
 ```
 
-Onde Estado é o código UF (SIGLA) do estado a ser enriquecido (seguindo a tabela abaixo), ANO é o ano da eleição a ser processadada, OUTDIR o diretório usado na etapa de coleta, REMOTE_ADD é o endereço o qual o mini servidor do cli está exposto, CCE_ADD é o endereço do CCE, USERNAME e PASSWORD são os parâmetros de basic auth. Um exemplo completo de chamada é o seguinte:
+Onde: 
++ BUCKET é o destino final dos arquivos de candidaturas processado, podendo ser um path local ou um bucket do GCS;
++ ESTADO é o código UF (SIGLA) do estado a ser enriquecido (seguindo a tabela abaixo);
++ OUTDIR o diretório usado na etapa de coleta;
+
+Um exemplo completo de chamada é o seguinte:
+
 ```
-go run cli.go -estado=TO -ano=2016 -outdir=./baseDir -remoteadd=https://2f307e515c14.ngrok.io -cceadd=http://localhost:8877/cce -username=cands -password=pass
+go run main.go --outDir=gs://2016 --state=AL --localDir=/Users/user0/candidatos.info/enriquecedores/candidatures/cli/temp
 ```
 
 | Estado | Sigla |

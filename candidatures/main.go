@@ -64,15 +64,15 @@ type cceStatusResponse struct {
 
 func main() {
 	source := flag.String("sourceFile", "", "fonte do arquivo zip")
-	outDir := flag.String("outdir", "", "diretório para colocar os arquivos .csv de candidaturas")
+	localDir := flag.String("localDir", "", "diretório para colocar os arquivos .csv de candidaturas")
 	state := flag.String("state", "", "estado a ser processado")
-	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
+	candidaturesDir := flag.String("outDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
 	flag.Parse()
 	if *source != "" {
-		if *outDir == "" {
+		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := collect(*source, *outDir); err != nil {
+		if err := collect(*source, *localDir); err != nil {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
@@ -82,10 +82,10 @@ func main() {
 		if *state == "" {
 			log.Fatal("informe estado a ser processado")
 		}
-		if *outDir == "" {
+		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *outDir, *candidaturesDir); err != nil {
+		if err := process(*state, *localDir, *candidaturesDir); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
