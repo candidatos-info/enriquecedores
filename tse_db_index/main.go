@@ -15,8 +15,10 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/datastore"
+	"github.com/briandowns/spinner"
 	"github.com/candidatos-info/descritor"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
 	"github.com/gocarina/gocsv"
@@ -44,9 +46,13 @@ func main() {
 		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
+		s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = fmt.Sprintf("downloading from %s ", *source)
+		s.Start()
 		if err := collect(*source, *localDir); err != nil {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
+		s.Stop()
 	} else {
 		var candidaturesRepository candidaturesRepository
 		if *projectID == "" {

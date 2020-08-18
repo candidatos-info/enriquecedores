@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/datastore v1.2.0
 	cloud.google.com/go/pubsub v1.6.1 // indirect
 	cloud.google.com/go/storage v1.10.0
+	github.com/briandowns/spinner v1.11.1
 	github.com/candidatos-info/descritor v0.0.0-20200812162116-697cf5b508a2
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
