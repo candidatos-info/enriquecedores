@@ -6,7 +6,7 @@ A primeira etapa do enriquecimento é a de coleta dos arquivos de candidatura do
 go run main.go --localDir=${DIRETORIO} --collect=${URL}
 ```
 
-Onde DIRETORIO é o local onde os arquivos CSV do TSE deve ficar armazenados localmente e URL é o endereço onde os arquivos devem ser buscados. OBS: a implementação deste enriquecedor suporta tanto procolo HTTP(s) quanto file.
+Onde DIRETORIO é o diretório de saída onde os arquivos descomprimidos serão colocados localmente e URL é fonte do arquivo zip do TSE com as candidaturas. OBS: a implementação deste enriquecedor suporta tanto procolo HTTP(s) quanto file;
 
 Um exemplo concreto de coleta usando protocolo file:
 
