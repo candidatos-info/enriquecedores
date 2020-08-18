@@ -1,4 +1,4 @@
-# Tutorial
+# README
 
 Para realizar o enriquecimento de fotos antes é necessario obter os arquivos por meio de alguma fonte como brasil.io (https://brasil.io/dataset/eleicoes-brasil/candidatos/). Uma vez de posse das fotos basta rodar o seguinte commando:
 ```
