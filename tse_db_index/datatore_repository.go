@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/datastore"
+	"github.com/candidatos-info/descritor"
 )
 
 type datastoreRepository struct {
@@ -23,4 +24,8 @@ func (ds *datastoreRepository) save(votingCity *votingCity) error {
 		return fmt.Errorf("falha ao salvar local de votação com estado [%s] e cidade [%s], erro %q", votingCity.State, votingCity.City, err)
 	}
 	return nil
+}
+
+func (ds *datastoreRepository) findCandidateByEmail(email string) (*descritor.Candidatura, error) {
+	return nil, nil
 }
