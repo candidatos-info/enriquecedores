@@ -48,7 +48,7 @@ func TestProcess(t *testing.T) {
 		log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 	}
 	emailExpectedToBeOnDB := "VEREADORPOLAQUE@HOTMAIL.COM"
-	vc, err := candidaturesRepository.findCandidateByEmail(emailExpectedToBeOnDB)
+	vc, err := candidaturesRepository.findVotingCityByCandidateEmail(emailExpectedToBeOnDB)
 	if err != nil {
 		t.Errorf("expected err nil when looking for email [%s] on fake db, got %q", emailExpectedToBeOnDB, err)
 	}

@@ -25,7 +25,7 @@ func (ds *datastoreRepository) save(votingCity *votingCity) error {
 	return nil
 }
 
-func (ds *datastoreRepository) findCandidateByEmail(email string) (*votingCity, error) {
+func (ds *datastoreRepository) findVotingCityByCandidateEmail(email string) (*votingCity, error) {
 	query := datastore.NewQuery(candidaturesCollection).Filter("Candidates.Email =", email)
 	var entities []*votingCity
 	if _, err := ds.client.GetAll(context.Background(), query, &entities); err != nil {

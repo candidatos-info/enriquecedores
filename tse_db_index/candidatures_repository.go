@@ -3,5 +3,5 @@ package main
 type candidaturesRepository interface {
 	save(votingCity *votingCity) error
 
-	findCandidateByEmail(email string) (*votingCity, error)
+	findVotingCityByCandidateEmail(email string) (*votingCity, error)
 }

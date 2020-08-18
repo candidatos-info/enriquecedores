@@ -20,7 +20,7 @@ func (m *inMemoryRepository) save(votingCity *votingCity) error {
 	return nil
 }
 
-func (m *inMemoryRepository) findCandidateByEmail(email string) (*votingCity, error) {
+func (m *inMemoryRepository) findVotingCityByCandidateEmail(email string) (*votingCity, error) {
 	for _, votingPlace := range m.db {
 		for _, candidature := range votingPlace.Candidates {
 			if candidature.Candidato.Email == email {
