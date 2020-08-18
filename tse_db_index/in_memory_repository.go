@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/candidatos-info/descritor"
 )
 
 type inMemoryRepository struct {
@@ -22,11 +20,11 @@ func (m *inMemoryRepository) save(votingCity *votingCity) error {
 	return nil
 }
 
-func (m *inMemoryRepository) findCandidateByEmail(email string) (*descritor.Candidatura, error) {
+func (m *inMemoryRepository) findCandidateByEmail(email string) (*votingCity, error) {
 	for _, votingPlace := range m.db {
 		for _, candidature := range votingPlace.Candidates {
 			if candidature.Candidato.Email == email {
-				return candidature, nil
+				return votingPlace, nil
 			}
 		}
 	}

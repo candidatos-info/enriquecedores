@@ -48,12 +48,15 @@ func main() {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
+		var cr candidaturesRepository
 		if *projectID == "" {
-			log.Fatal("informe o id de projeto")
-		}
-		client, err := datastore.NewClient(context.Background(), *projectID)
-		if err != nil {
-			log.Fatalf("falha ao criar cliente de datastore: %v", err)
+			cr = newInMemoryRepository()
+		} else {
+			client, err := datastore.NewClient(context.Background(), *projectID)
+			if err != nil {
+				log.Fatalf("falha ao criar cliente de datastore: %v", err)
+			}
+			cr = newDatastoreRepository(client)
 		}
 		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
@@ -61,7 +64,7 @@ func main() {
 		if *state == "" {
 			log.Fatal("informar o estado a ser enriquecido")
 		}
-		if err := process(*localDir, *state, client); err != nil {
+		if err := process(*localDir, *state, cr); err != nil {
 			log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 		}
 	}
@@ -153,7 +156,7 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(localDir, state string, client *datastore.Client) error {
+func process(localDir, state string, candidaturesRepository candidaturesRepository) error {
 	pathToOpen := ""
 	err := filepath.Walk(localDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -187,13 +190,13 @@ func process(localDir, state string, client *datastore.Client) error {
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	if err := saveCandidatures(state, filteredCandidatures, client); err != nil {
+	if err := saveCandidatures(state, filteredCandidatures, candidaturesRepository); err != nil {
 		return fmt.Errorf("falha ao salvar candidaturas no banco, erro %q", err)
 	}
 	return nil
 }
 
-func saveCandidatures(state string, candidatures map[string]*descritor.Candidatura, client *datastore.Client) error {
+func saveCandidatures(state string, candidatures map[string]*descritor.Candidatura, candidaturesRepository candidaturesRepository) error {
 	groupedCandidatures := groupCandidaturesByCity(candidatures)
 	for city, candidaturesList := range groupedCandidatures {
 		votingCity := votingCity{
@@ -201,8 +204,7 @@ func saveCandidatures(state string, candidatures map[string]*descritor.Candidatu
 			State:      state,
 			Candidates: candidaturesList,
 		}
-		votinLocationID := datastore.NameKey(candidaturesCollection, fmt.Sprintf("%s_%s", state, city), nil)
-		if _, err := client.Put(context.Background(), votinLocationID, &votingCity); err != nil {
+		if err := candidaturesRepository.save(&votingCity); err != nil {
 			return fmt.Errorf("falha ao salvar local de votação para estado [%s] e cidade [%s] no banco, erro %q", state, city, err)
 		}
 	}

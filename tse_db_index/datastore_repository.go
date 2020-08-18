@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/datastore"
-	"github.com/candidatos-info/descritor"
 )
 
 type datastoreRepository struct {
@@ -26,6 +25,11 @@ func (ds *datastoreRepository) save(votingCity *votingCity) error {
 	return nil
 }
 
-func (ds *datastoreRepository) findCandidateByEmail(email string) (*descritor.Candidatura, error) {
-	return nil, nil
+func (ds *datastoreRepository) findCandidateByEmail(email string) (*votingCity, error) {
+	query := datastore.NewQuery(candidaturesCollection).Filter("Candidates.Email =", email)
+	var entities []*votingCity
+	if _, err := ds.client.GetAll(context.Background(), query, &entities); err != nil {
+		return nil, fmt.Errorf("falha ao buscar voting place por usando email [%s], erro %q", email, err)
+	}
+	return entities[0], nil
 }
