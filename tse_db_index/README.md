@@ -1,4 +1,4 @@
-# Tutorial
+# README
 
 A primeira etapa do enriquecimento é a de coleta dos arquivos de candidatura do TSE que podem ser obtidos por este link: http://www.tse.jus.br/eleicoes/estatisticas/repositorio-de-dados-eleitorais-1/repositorio-de-dados-eleitorais. De posse da fonte de dados das candidaturas basta rodar o seguinte comando:
 
