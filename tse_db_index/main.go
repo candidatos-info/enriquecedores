@@ -27,79 +27,41 @@ const (
 	candidaturesCollection = "candidatures"
 )
 
-// TODO refact these items
-
-// Candidato representa os dados de um candidato
-type Candidato struct {
-	UF              string `csv:"SG_UF_NASCIMENTO"`              // Identificador (2 caracteres) da unidade federativa de nascimento do candidato.
-	Municipio       string `csv:"NM_MUNICIPIO_NASCIMENTO"`       // Município de nascimento do candidato.
-	Nascimento      string `csv:"DT_NASCIMENTO"`                 // Data de nascimento do candidato.
-	TituloEleitoral string `csv:"NR_TITULO_ELEITORAL_CANDIDATO"` // Titulo eleitoral do candidato.
-	Genero          string `csv:"DS_GENERO"`                     // Gênero do candidato (MASCULINO ou FEMININO).
-	GrauInstrucao   string `csv:"DS_GRAU_INSTRUCAO"`             // Grau de instrução do candidato.
-	EstadoCivil     string `csv:"DS_ESTADO_CIVIL"`               // Estado civil do candidato.
-	Raca            string `csv:"DS_COR_RACA"`                   // Raça do candidato (como BRANCA ou PARDA).
-	Ocupacao        string `csv:"DS_OCUPACAO"`                   // Ocupação do candidato (como COMERCIANTE e ARTISTA por exemplo).
-	CPF             string `csv:"NR_CPF_CANDIDATO"`              // CPF do candidato.
-	Nome            string `csv:"NM_CANDIDATO"`                  // Nome de pessoa física do candidato.
-	Email           string `csv:"NM_EMAIL"`                      // Email do candidato.
-}
-
-// Candidatura representa dados de uma candidatura
-type Candidatura struct {
-	Legislatura         int    `csv:"ANO_ELEICAO"`              // Ano eleitoral em que a candidatura foi homologada.
-	Cargo               string `csv:"DS_CARGO"`                 // Cargo sendo pleiteado pela candidatura.
-	UF                  string `csv:"SG_UF"`                    // Identificador (2 caracteres) de unidade federativa onde ocorreu a candidatura.
-	Municipio           string `csv:"NM_UE"`                    // Município que ocorreu a eleição.
-	NumeroUrna          int    `csv:"NR_CANDIDATO"`             // Número do candidato na urna.
-	NomeUrna            string `csv:"NM_URNA_CANDIDATO"`        // Nome do candidato na urna.
-	Aptidao             string `csv:"DS_SITUACAO_CANDIDATURA"`  // Aptidao da candidatura (podendo ser APTO ou INAPTO).
-	Deferimento         string `csv:"DS_DETALHE_SITUACAO_CAND"` // Situação do candidato (pondendo ser DEFERIDO ou INDEFERIDO).
-	TipoAgremiacao      string `csv:"TP_AGREMIACAO"`            // Indica o tipo de agremiação do candidato (podendo ser PARTIDO ISOLADO ou AGREMIAÇÃO).
-	NumeroPartido       int    `csv:"NR_PARTIDO"`               // Número do partido do candidato.
-	LegendaPartido      string `csv:"SG_PARTIDO"`               // Legenda do partido do candidato.
-	NomePartido         string `csv:"NM_PARTIDO"`               // Nome do partido do candidato.
-	NomeColigacao       string `csv:"NM_COLIGACAO"`             // Nome da coligação a qual o candidato pertence.
-	PartidosColigacao   string `csv:"DS_COMPOSICAO_COLIGACAO"`  // Partidos pertencentes à coligação do candidato.
-	DeclarouBens        string `csv:"ST_DECLARAR_BENS"`         // Flag que informa se o candidato declarou seus bens na eleição.s
-	Situacao            string `csv:"DS_SIT_TOT_TURNO"`         // Campo que informa como o candidato terminou o primeiro turno da eleição (por exemplo como ELEITO, NÃO ELEITO, ELEITO POR MÉDIA) ou se foi para o segundo turno (ficando com situação SEGUNDO TURNO).
-	Turno               int    `csv:"NR_TURNO"`                 // Campo que informa número do turno
-	SequencialCandidato string `csv:"SQ_CANDIDATO"`             // ID sequencial do candidato no sistema do TSE
-	Candidato
+// db schema
+type votingCity struct {
+	City       string
+	State      string
+	Candidates []*descritor.Candidatura
 }
 
 func main() {
-	source := flag.String("coleta", "", "fonte do arquivo zip do TSE com as candidaturas") // pode ser um path usando protocolo file:// ou http://
-	outDir := flag.String("outdir", "", "diretório de saída onde os arquivos descomprimidos serão colocados")
-	state := flag.String("estado", "", "estado para ser enriquecido")
-	projectID := flag.String("projectid", "", "id do projeto no Google Cloud")
+	source := flag.String("collect", "", "fonte do arquivo zip do TSE com as candidaturas") // pode ser um path usando protocolo file:// ou http://
+	localDir := flag.String("localDir", "", "diretório de saída onde os arquivos descomprimidos serão colocados")
+	state := flag.String("state", "", "estado para ser enriquecido")
+	projectID := flag.String("projectID", "", "id do projeto no Google Cloud")
 	flag.Parse()
-	ctx := context.Background()
 	if *source != "" {
-		if *outDir == "" {
+		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := collect(*source, *outDir); err != nil {
+		if err := collect(*source, *localDir); err != nil {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
 	} else {
 		if *projectID == "" {
 			log.Fatal("informe o id de projeto")
 		}
-		client, err := datastore.NewClient(ctx, *projectID)
-		if err != nil {
-			log.Fatalf("falha ao criar cliente do Datastore, erro %q", err)
-		}
+		client, err := datastore.NewClient(context.Background(), *projectID)
 		if err != nil {
 			log.Fatalf("falha ao criar cliente de datastore: %v", err)
 		}
-		if *outDir == "" {
+		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
 		if *state == "" {
 			log.Fatal("informar o estado a ser enriquecido")
 		}
-		if err := process(*outDir, *state, client); err != nil {
+		if err := process(*localDir, *state, client); err != nil {
 			log.Fatalf("falha ao processar dados para enriquecimento do banco, erro %q", err)
 		}
 	}
@@ -191,16 +153,16 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(outDir, state string, client *datastore.Client) error {
+func process(localDir, state string, client *datastore.Client) error {
 	pathToOpen := ""
-	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(localDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
 			pathToOpen = path
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("falha ao passear entre arquivos do diretório %s, erro %q", outDir, err)
+		return fmt.Errorf("falha ao passear entre arquivos do diretório %s, erro %q", localDir, err)
 	}
 	if pathToOpen == "" {
 		return fmt.Errorf("falha ao encontrar path para estado %s", state)
@@ -225,32 +187,37 @@ func process(outDir, state string, client *datastore.Client) error {
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	if err := saveCandidatures(filteredCandidatures, client); err != nil {
+	if err := saveCandidatures(state, filteredCandidatures, client); err != nil {
 		return fmt.Errorf("falha ao salvar candidaturas no banco, erro %q", err)
 	}
 	return nil
 }
 
-func saveCandidatures(candidatures map[string]*descritor.Candidatura, client *datastore.Client) error {
-	for _, candidature := range candidatures {
-		candidate, err := findCandidateByLegalCode(candidature.Candidato.CPF, client)
-		if err != nil {
-			return err
+func saveCandidatures(state string, candidatures map[string]*descritor.Candidatura, client *datastore.Client) error {
+	groupedCandidatures := groupCandidaturesByCity(candidatures)
+	for city, candidaturesList := range groupedCandidatures {
+		votingCity := votingCity{
+			City:       city,
+			State:      state,
+			Candidates: candidaturesList,
 		}
-		if candidate == nil { // do not exits
-			// TODO implement when exists
-		} else {
-			// TODO implement when do not exits
+		votinLocationID := datastore.NameKey(candidaturesCollection, fmt.Sprintf("%s_%s", state, city), nil)
+		if _, err := client.Put(context.Background(), votinLocationID, &votingCity); err != nil {
+			return fmt.Errorf("falha ao salvar local de votação para estado [%s] e cidade [%s] no banco, erro %q", state, city, err)
 		}
 	}
 	return nil
 }
 
-func findCandidateByLegalCode(legalCode string, client *datastore.Client) (*tseutils.Candidate, error) {
-	var c []*tseutils.Candidate
-	query := datastore.NewQuery(candidaturesCollection).Filter("LegalCode =", legalCode)
-	if _, err := client.GetAll(context.Background(), query, &c); err != nil {
-		return nil, fmt.Errorf("falha ao buscar candidato por CPF, erro %q", err)
+func groupCandidaturesByCity(candidatures map[string]*descritor.Candidatura) map[string][]*descritor.Candidatura {
+	cities := make(map[string][]*descritor.Candidatura)
+	for _, candidature := range candidatures {
+		foundCity := cities[candidature.Municipio]
+		if foundCity == nil {
+			cities[candidature.Municipio] = []*descritor.Candidatura{candidature}
+		} else {
+			cities[candidature.Municipio] = append(cities[candidature.Municipio], candidature)
+		}
 	}
-	return c[0], nil
+	return cities
 }
