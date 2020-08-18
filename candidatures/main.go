@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/candidatos-info/descritor"
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	tseutils "github.com/candidatos-info/enriquecedores/tse_utils"
@@ -72,9 +73,13 @@ func main() {
 		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
+		s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		s.Prefix = fmt.Sprintf("downloading from %s ", *source)
+		s.Start()
 		if err := collect(*source, *localDir); err != nil {
 			log.Fatalf("falha ao executar coleta, erro %q", err)
 		}
+		s.Stop()
 	} else {
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
