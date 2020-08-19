@@ -112,19 +112,16 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 	t := &http.Transport{}
 	c := &http.Client{Transport: t}
 	var length int
+	tempByffer := new(bytes.Buffer)
 	if strings.HasPrefix(url, "http") {
-		resp, err := client.Head(url)
-		if err != nil {
-			return nil, fmt.Errorf("falha ao buscar cabeçalho de arquivo, erro %q", err)
-		}
-		contentLength := resp.Header.Get("content-length")
-		length, err = strconv.Atoi(contentLength)
-		if err != nil {
-			return nil, fmt.Errorf("falha ao pegar tamanho do arquivo a ser baixado, erro %q", err)
-		}
 		res, err = c.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("problema ao baixar os arquivos da url %s, erro: %q", url, err)
+		}
+		contentLength := res.Header.Get("content-length")
+		length, err = strconv.Atoi(contentLength)
+		if err != nil {
+			return nil, fmt.Errorf("falha ao pegar tamanho do arquivo a ser baixado, erro %q", err)
 		}
 	} else if strings.HasPrefix(url, "file") {
 		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
@@ -132,18 +129,22 @@ func donwloadFile(url string, w io.Writer) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("falha ao buscar arquivos do sistema com caminho %s, erro: %q", url, err)
 		}
+		if _, err := io.Copy(tempByffer, res.Body); err != nil {
+			return nil, fmt.Errorf("falha copiar bytes da requisição, erro %q", err)
+		}
 	} else {
 		return nil, fmt.Errorf("protocolo %s não suportado", url[0:5])
 	}
 	defer res.Body.Close()
-	reader := io.LimitReader(res.Body, int64(length))
-	bar := pb.Full.Start64(int64(length))
-	barReader := bar.NewProxyReader(reader)
-	tempByffer := new(bytes.Buffer)
-	if _, err := io.Copy(tempByffer, barReader); err != nil {
-		return nil, fmt.Errorf("falha copiar bytes do bar reader, erro %q", err)
+	if strings.HasPrefix(url, "http") {
+		reader := io.LimitReader(res.Body, int64(length))
+		bar := pb.Full.Start64(int64(length))
+		barReader := bar.NewProxyReader(reader)
+		if _, err := io.Copy(tempByffer, barReader); err != nil {
+			return nil, fmt.Errorf("falha ao copiar bytes do bar reader, erro %q", err)
+		}
+		bar.Finish()
 	}
-	bar.Finish()
 	bodyAsBytes, err := ioutil.ReadAll(tempByffer)
 	if err != nil {
 		return nil, fmt.Errorf("falha ao ler os bytes da resposta da requisição, erro: %q", err)
