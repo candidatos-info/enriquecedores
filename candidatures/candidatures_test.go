@@ -51,11 +51,11 @@ func TestProcess(t *testing.T) {
 	if err = os.MkdirAll(dirToSaveCandidatures, 0755); err != nil {
 		t.Errorf("expected error nil when creating a test directory [%s], got %q", dirToSaveCandidatures, err)
 	}
-	if err := process(stateToTest, outputDir, dirToSaveCandidatures); err != nil {
+	if err := process(stateToTest, outputDir, dirToSaveCandidatures, "", ""); err != nil {
 		t.Errorf("expected err nil when processing files, got %q", err)
 	}
-	expectedCityToHaveAfterProcessment := "ARACAJU"
-	fileToCheckIfExists := fmt.Sprintf("./%s/%s_%s", dirToSaveCandidatures, stateToTest, expectedCityToHaveAfterProcessment)
+	expectedSequancialCandidateToHave := "260000003557"
+	fileToCheckIfExists := fmt.Sprintf("./%s/%s.pb", dirToSaveCandidatures, expectedSequancialCandidateToHave)
 	if _, err := os.Stat(fileToCheckIfExists); err != nil {
 		t.Errorf("expected to have err nil when running stat for expected file [%s], got %q", fileToCheckIfExists, err)
 	}
@@ -63,14 +63,21 @@ func TestProcess(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected err nil when reading bytes of file [%s], got %q", fileToCheckIfExists, err)
 	}
-	var cityData descritor.CandidaturasDeCidade
-	if err = proto.Unmarshal(bytesToUnmarshal, &cityData); err != nil {
+	var candidature descritor.Candidatura
+	if err = proto.Unmarshal(bytesToUnmarshal, &candidature); err != nil {
 		t.Errorf("expected error nil when unmarshaling bytes of file [%s], got %q", fileToCheckIfExists, err)
 	}
-	expectedSequancialCandidateToHaveOnTestFile := "260000003557"
-	dataExpectedToNotBeNil := cityData.Group[expectedSequancialCandidateToHaveOnTestFile]
-	if dataExpectedToNotBeNil == nil {
-		t.Errorf("expected to not find register with code [%s] on file", expectedSequancialCandidateToHaveOnTestFile)
+	exepectedGenderOnSample := "FEMININO"
+	expectedVotingIDOnSample := "000412212100"
+	expectedEmailOnSample := "PSB@PSBSERGIPE.COM.BR"
+	if candidature.Candidato.Email != expectedEmailOnSample {
+		t.Errorf("expected to find email [%s], got [%s]", expectedEmailOnSample, candidature.Candidato.Email)
+	}
+	if candidature.Candidato.TituloEleitoral != expectedVotingIDOnSample {
+		t.Errorf("expected to find voting id [%s], got [%s]", expectedVotingIDOnSample, candidature.Candidato.TituloEleitoral)
+	}
+	if candidature.Candidato.Genero != exepectedGenderOnSample {
+		t.Errorf("expected to find gender [%s], got [%s]", exepectedGenderOnSample, candidature.Candidato.Genero)
 	}
 	if err := os.RemoveAll(outputDir); err != nil {
 		t.Errorf("expected erro nil when removing created files")

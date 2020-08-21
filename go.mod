@@ -21,9 +21,11 @@ require (
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2
 	github.com/valyala/fasttemplate v1.2.0 // indirect
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sys v0.0.0-20200812155832-6a926be9bd1d // indirect
 	golang.org/x/text v0.3.3
 	golang.org/x/tools v0.0.0-20200811215021-48a8ffc5b207 // indirect
+	google.golang.org/api v0.30.0
 	google.golang.org/genproto v0.0.0-20200812160120-2e714abc8b50 // indirect
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/VividCortex/ewma.v1 v1.1.1 // indirect
