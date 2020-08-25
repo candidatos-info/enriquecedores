@@ -1,4 +1,4 @@
-package filestorage
+package main
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"golang.org/x/oauth2"
@@ -17,25 +18,23 @@ type googleDrive struct {
 	service *drive.Service
 }
 
-// NewGoogleDriveStorage returns a new client to execute file operations
-// with Google Drive.
-func NewGoogleDriveStorage(credentialsFile, oauthToken string) (FileStorage, error) {
+func newGoogleDriveStorage(credentialsFile, oauthToken string) (storageService, error) {
 	b, err := ioutil.ReadFile(credentialsFile)
 	if err != nil {
 		return nil, fmt.Errorf("falha ao ler arquivo de crendenciais [%s], erro %q", credentialsFile, err)
 	}
 	config, err := google.ConfigFromJSON(b, drive.DriveScope)
 	if err != nil {
-		return nil, fmt.Errorf("falha ao processar configuraçōes usando o arquivo [%s], erro %q", credentialsFile, err)
+		log.Fatalf("falha ao processar configuraçōes usando o arquivo [%s], erro %q", credentialsFile, err)
 	}
 	f, err := os.Open(oauthToken)
 	if err != nil {
-		return nil, fmt.Errorf("falha ao abrir arquivo de token oauth [%s], erro %q", oauthToken, err)
+		log.Fatalf("falha ao abrir arquivo de token oauth [%s], erro %q", oauthToken, err)
 	}
 	defer f.Close()
 	tok := &oauth2.Token{}
 	if err = json.NewDecoder(f).Decode(tok); err != nil {
-		return nil, fmt.Errorf("falha ao fazer bind do token OAuth, erro %q", err)
+		log.Fatalf("falha ao fazer bind do token OAuth, erro %q", err)
 	}
 	client := config.Client(context.Background(), tok)
 	service, err := drive.New(client)

@@ -203,7 +203,11 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 func process(state, outDir, candidaturesDir, googleDriveCredentialsFile, goodleDriveOAuthTokenFile string) error {
 	var client filestorage.FileStorage
 	if googleDriveCredentialsFile != "" && goodleDriveOAuthTokenFile != "" {
-		client = filestorage.NewGoogleDriveStorage(googleDriveCredentialsFile, goodleDriveOAuthTokenFile)
+		var err error
+		client, err = filestorage.NewGoogleDriveStorage(googleDriveCredentialsFile, goodleDriveOAuthTokenFile)
+		if err != nil {
+			return fmt.Errorf("falha ao criar cliente do Google Drive, erro %q", err)
+		}
 	} else {
 		client = filestorage.NewLocalStorage()
 	}

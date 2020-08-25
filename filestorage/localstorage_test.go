@@ -28,26 +28,3 @@ func TestUpload(t *testing.T) {
 		t.Errorf("expected erro nil when removing created files")
 	}
 }
-
-func TestFileExistsWithFileExisting(t *testing.T) {
-	fileName := "file.txt"
-	if err := ioutil.WriteFile(fileName, []byte("Content"), 0755); err != nil {
-		t.Errorf("expected to have err nil when writing to test file %s, erro %q", fileName, err)
-	}
-	fileStorage := NewLocalStorage()
-	result := fileStorage.FileExists(".", fileName)
-	if !result {
-		t.Errorf("expected get result true for file exists, but got false")
-	}
-	if err := os.RemoveAll(fileName); err != nil {
-		t.Errorf("expected erro nil when removing created files")
-	}
-}
-
-func TestFileExistsWithFileNotExisting(t *testing.T) {
-	fileStorage := NewLocalStorage()
-	result := fileStorage.FileExists("RANDOM_DIR", "RANDOM_NAME")
-	if result == true {
-		t.Errorf("expected get result true for file exists, but got false")
-	}
-}
