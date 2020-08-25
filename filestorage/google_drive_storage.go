@@ -59,7 +59,7 @@ func (gd *googleDrive) Upload(b []byte, bucket, fileName string) error {
 		return fmt.Errorf("falha ao copiar conteúdo de arquivo para buffer temporário, erro %q", err)
 	}
 	if _, err := gd.service.Files.Create(f).Media(buffer).Do(); err != nil {
-		return fmt.Errorf("falha ao criar quivo [%s] na pasta [%s] no Google Drive, erro %q", fileName, bucket, err)
+		return err
 	}
 	return nil
 }

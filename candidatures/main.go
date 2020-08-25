@@ -254,12 +254,20 @@ func process(state, outDir, candidaturesDir, googleDriveCredentialsFile, goodleD
 			return attempt < maxAttempts, client.Upload(b, candidaturesDir, fileName)
 		})
 		if err != nil {
-			return fmt.Errorf("falha ao salvar arquivo de candidatura %s no bucket %s, erro %q", fileName, candidaturesDir, err)
+			return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %s", fileName, candidaturesDir, handleDriveError(err.Error()))
 		}
 		log.Printf("sent candidate [ %s ]\n", fileName)
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
 	}
 	return nil
+}
+
+func handleDriveError(errorMessage string) string {
+	stringsWithErrorCode := strings.Split(strings.Split(errorMessage, "googleapi: ")[1], ":")
+	if strings.Contains(stringsWithErrorCode[0], "403") { // o código de erro retornado em caso de estourar o rate limite é 403
+		return fmt.Sprintf("recebemos 403 do Google Drive, provavelmente o limite do uso foi atingido. mensagem: %s", stringsWithErrorCode[1])
+	}
+	return fmt.Sprintf("recebemos erro do Google Drive com messagem %s", stringsWithErrorCode[1])
 }
 
 // it gets an array of bytes to write into a file called fileName that
