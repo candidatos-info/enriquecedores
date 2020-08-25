@@ -53,7 +53,7 @@ func process(stateDir, storageDir string, logErrorFile *os.File) error {
 			fileName := filepath.Base(path)
 			fileExtension := filepath.Ext(fileName)
 			sequencialCandidate := strings.TrimSuffix(fileName, fileExtension)
-			candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
+			// candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
 			if strings.HasPrefix(storageDir, "gs://") { // using GCS
 				bucket := strings.ReplaceAll(storageDir, "gs://", "")
 				if filestorageClient.FileExists(bucket, candidatureFilePath) {
