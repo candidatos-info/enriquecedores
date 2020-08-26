@@ -29,7 +29,17 @@ func main() {
 	if *destinationDir == "" {
 		log.Fatal("informe o local onde as candidaturas estão")
 	}
-	if err := process(*stateDir, *destinationDir, *googleDriveCredentialsFile, *goodleDriveOAuthTokenFile); err != nil {
+	var client filestorage.FileStorage
+	if *googleDriveCredentialsFile != "" && *goodleDriveOAuthTokenFile != "" {
+		var err error
+		client, err = filestorage.NewGoogleDriveStorage(*googleDriveCredentialsFile, *goodleDriveOAuthTokenFile)
+		if err != nil {
+			log.Fatalf("falha ao criar cliente do Google Drive, erro %q", err)
+		}
+	} else {
+		client = filestorage.NewLocalStorage()
+	}
+	if err := process(*stateDir, *destinationDir, client); err != nil {
 		log.Fatalf("falha ao enriquecer fotos, erro %q", err)
 	}
 }
@@ -37,17 +47,7 @@ func main() {
 // it gets as argument the local path where pictures to be processed are placed (stateDir)
 // and the storageDir which is the place where candidatures are placed
 // and where the pictures will be placed too.
-func process(stateDir, storageDir, googleDriveCredentialsFile, goodleDriveOAuthTokenFile string) error {
-	var client filestorage.FileStorage
-	if googleDriveCredentialsFile != "" && goodleDriveOAuthTokenFile != "" {
-		var err error
-		client, err = filestorage.NewGoogleDriveStorage(googleDriveCredentialsFile, goodleDriveOAuthTokenFile)
-		if err != nil {
-			return fmt.Errorf("falha ao criar cliente do Google Drive, erro %q", err)
-		}
-	} else {
-		client = filestorage.NewLocalStorage()
-	}
+func process(stateDir, storageDir string, client filestorage.FileStorage) error {
 	err := filepath.Walk(stateDir, func(path string, info os.FileInfo, err error) error {
 		if path != stateDir {
 			fileName := filepath.Base(path)
