@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/candidatos-info/enriquecedores/filestorage"
 )
 
 func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
@@ -26,7 +28,7 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 	if err := ioutil.WriteFile(fakeCandidatureFileName, []byte(dumbMessage), 0644); err != nil {
 		t.Errorf("expected error nil when create file [%s] to simulate a candidature file, got %q", fakeCandidatureFileName, err)
 	}
-	if err := process(picturesDir, storageDir, "", ""); err != nil {
+	if err := process(picturesDir, storageDir, filestorage.NewLocalStorage()); err != nil {
 		t.Errorf("expected error nil when running process, error %q", err)
 	}
 	expectedFileToFindOnStorageDirAfterProcess := fmt.Sprintf("%s/%s_%s.jpg", storageDir, picturesDir, fakeSequencialCandidate)
