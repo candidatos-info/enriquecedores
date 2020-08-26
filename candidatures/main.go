@@ -249,7 +249,7 @@ func process(state, outDir, candidaturesDir, googleDriveCredentialsFile, goodleD
 		if err != nil {
 			return fmt.Errorf("falha ao serializar grupo de cidades, erro %q", err)
 		}
-		fileName := fmt.Sprintf("%s.pb", candidature.SequencialCandidato)
+		fileName := fmt.Sprintf("%s_%s.pb", state, candidature.SequencialCandidato)
 		err = try.Do(func(attempt int) (bool, error) {
 			return attempt < maxAttempts, client.Upload(b, candidaturesDir, fileName)
 		})
