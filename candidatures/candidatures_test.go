@@ -55,7 +55,7 @@ func TestProcess(t *testing.T) {
 		t.Errorf("expected err nil when processing files, got %q", err)
 	}
 	expectedSequancialCandidateToHave := "260000003557"
-	fileToCheckIfExists := fmt.Sprintf("./%s/%s.pb", dirToSaveCandidatures, expectedSequancialCandidateToHave)
+	fileToCheckIfExists := fmt.Sprintf("./%s/%s_%s.pb", dirToSaveCandidatures, stateToTest, expectedSequancialCandidateToHave)
 	if _, err := os.Stat(fileToCheckIfExists); err != nil {
 		t.Errorf("expected to have err nil when running stat for expected file [%s], got %q", fileToCheckIfExists, err)
 	}
