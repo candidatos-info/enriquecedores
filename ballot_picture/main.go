@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/matryer/try"
@@ -50,7 +51,7 @@ func process(stateDir, storageDir, googleDriveCredentialsFile, goodleDriveOAuthT
 	err := filepath.Walk(stateDir, func(path string, info os.FileInfo, err error) error {
 		if path != stateDir {
 			fileName := filepath.Base(path)
-			filePath := fmt.Sprintf("%s_%s", stateDir, fileName) // ${ESTADO}_${SEQUENCIAL_CANDIDATE}
+			filePath := fmt.Sprintf("%s_%s", filepath.Base(stateDir), fileName) // ${ESTADO}_${SEQUENCIAL_CANDIDATE}
 			b, err := ioutil.ReadFile(path)
 			if err != nil {
 				return fmt.Errorf("falha ao ler arquivo [%s], erro %q", path, err)
@@ -61,6 +62,8 @@ func process(stateDir, storageDir, googleDriveCredentialsFile, goodleDriveOAuthT
 			if err != nil {
 				return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %q", filePath, storageDir, err)
 			}
+			log.Printf("sent file [%s]\n", filePath)
+			time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
 		}
 		return nil
 	})
