@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/matryer/try"
@@ -20,6 +20,8 @@ const (
 func main() {
 	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")                     // fotos estão em um path local
 	destinationDir := flag.String("outDir", "", "local onde ficam os arquivos de candidaturas e fotos") // OBS: arquivos de candidaturas e fotos ficam armazenados no mesmo diretório/bucket. Se for para usar o gcs usar gs://BUCKET, se for local basta passar o path
+	googleDriveCredentialsFile := flag.String("credentials", "", "chave de credenciais o Goodle Drive")
+	goodleDriveOAuthTokenFile := flag.String("OAuthToken", "", "arquivo com token oauth")
 	flag.Parse()
 	if *stateDir == "" {
 		log.Fatal("informe o diretório onde as fotos do estão estão")
@@ -27,88 +29,46 @@ func main() {
 	if *destinationDir == "" {
 		log.Fatal("informe o local onde as candidaturas estão")
 	}
-	logFileName := fmt.Sprintf("%s.txt", filepath.Base(*stateDir))
-	logErrorFile, err := os.Create(logFileName)
-	if err != nil {
-		log.Fatalf("falha ao criar arquivo de fotos com falha %s, erro %q", logFileName, err)
+	var client filestorage.FileStorage
+	if *googleDriveCredentialsFile != "" && *goodleDriveOAuthTokenFile != "" {
+		var err error
+		client, err = filestorage.NewGoogleDriveStorage(*googleDriveCredentialsFile, *goodleDriveOAuthTokenFile)
+		if err != nil {
+			log.Fatalf("falha ao criar cliente do Google Drive, erro %q", err)
+		}
+	} else {
+		client = filestorage.NewLocalStorage()
 	}
-	if err := process(*stateDir, *destinationDir, logErrorFile); err != nil {
+	if err := process(*stateDir, *destinationDir, client); err != nil {
 		log.Fatalf("falha ao enriquecer fotos, erro %q", err)
 	}
-	defer logErrorFile.Close()
 }
 
 // it gets as argument the local path where pictures to be processed are placed (stateDir)
 // and the storageDir which is the place where candidatures are placed
 // and where the pictures will be placed too.
-func process(stateDir, storageDir string, logErrorFile *os.File) error {
-	var filestorageClient filestorage.FileStorage
-	if strings.HasPrefix(storageDir, "gs://") {
-		filestorageClient = filestorage.NewGCSClient()
-	} else {
-		filestorageClient = filestorage.NewLocalStorage()
-	}
+func process(stateDir, storageDir string, client filestorage.FileStorage) error {
 	err := filepath.Walk(stateDir, func(path string, info os.FileInfo, err error) error {
 		if path != stateDir {
 			fileName := filepath.Base(path)
-			fileExtension := filepath.Ext(fileName)
-			sequencialCandidate := strings.TrimSuffix(fileName, fileExtension)
-			candidatureFilePath := fmt.Sprintf("%s.zip", sequencialCandidate)
-			if strings.HasPrefix(storageDir, "gs://") { // using GCS
-				bucket := strings.ReplaceAll(storageDir, "gs://", "")
-				if filestorageClient.FileExists(bucket, candidatureFilePath) {
-					b, err := ioutil.ReadFile(path)
-					if err != nil {
-						return fmt.Errorf("falha ao ler arquivo %s, erro %q", path, err)
-					}
-					if err := saveFiles(b, bucket, fileName, filestorageClient); err != nil {
-						return err
-					}
-				} else {
-					if err := handlePictureNotRelated(sequencialCandidate, logErrorFile); err != nil {
-						return err
-					}
-				}
-			} else {
-				candidatureLocalPath := fmt.Sprintf("%s/%s.zip", storageDir, strings.TrimSuffix(fileName, filepath.Ext(fileName)))
-				if _, err := os.Stat(candidatureLocalPath); err == nil {
-					b, err := ioutil.ReadFile(candidatureLocalPath)
-					if err != nil {
-						return fmt.Errorf("falha ao ler arquivo %s, erro %q", candidatureLocalPath, err)
-					}
-					if err := saveFiles(b, storageDir, fileName, filestorageClient); err != nil {
-						return err
-					}
-				} else {
-					if err := handlePictureNotRelated(sequencialCandidate, logErrorFile); err != nil {
-						return err
-					}
-				}
+			filePath := fmt.Sprintf("%s_%s", filepath.Base(stateDir), fileName) // ${ESTADO}_${SEQUENCIAL_CANDIDATE}
+			b, err := ioutil.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("falha ao ler arquivo [%s], erro %q", path, err)
 			}
+			err = try.Do(func(attempt int) (bool, error) {
+				return attempt < maxAttempts, client.Upload(b, storageDir, filePath)
+			})
+			if err != nil {
+				return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %q", filePath, storageDir, err)
+			}
+			log.Printf("sent file [%s]\n", filePath)
+			time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
 		}
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("falha ao percorrer arquivos de diretótio %s, erro %q", stateDir, err)
-	}
-	return nil
-}
-
-func saveFiles(bytes []byte, bucket, filePath string, filestorageClient filestorage.FileStorage) error {
-	err := try.Do(func(attempt int) (bool, error) {
-		return attempt < maxAttempts, filestorageClient.Upload(bytes, bucket, filePath)
-	})
-	if err != nil {
-		return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %q", filePath, bucket, err)
-	}
-	return nil
-}
-
-func handlePictureNotRelated(sequencialCandidate string, logErrorFile *os.File) error {
-	log.Printf("código [%s] não encontrado no diretório de candidaturas\n", sequencialCandidate)
-	newLine := fmt.Sprintf("%s\n", sequencialCandidate)
-	if _, err := logErrorFile.WriteString(newLine); err != nil {
-		return fmt.Errorf("falha ao escrever sequencial de candidato [%s] no arquivo de log [%s], erro %q", sequencialCandidate, logErrorFile.Name(), err)
 	}
 	return nil
 }
