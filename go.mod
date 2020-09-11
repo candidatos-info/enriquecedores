@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/pubsub v1.6.1 // indirect
 	cloud.google.com/go/storage v1.11.0
 	github.com/briandowns/spinner v1.11.1
-	github.com/candidatos-info/descritor v0.0.0-20200902171249-3c4ddf901e60
+	github.com/candidatos-info/descritor v0.0.0-20200910120633-5b8459bab69c
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cheggaaa/pb v2.0.7+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.5 // indirect
@@ -22,12 +22,14 @@ require (
 	github.com/matryer/try v0.0.0-20161228173917-9ac251b645a2
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/valyala/fasttemplate v1.2.0 // indirect
+	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
-	golang.org/x/sys v0.0.0-20200831180312-196b9ba8737a // indirect
+	golang.org/x/sys v0.0.0-20200909081042-eff7692f9009 // indirect
 	golang.org/x/text v0.3.3
-	golang.org/x/tools v0.0.0-20200903185744-af4cc2cd812e // indirect
+	golang.org/x/tools v0.0.0-20200910165216-53e29e9d1252 // indirect
 	google.golang.org/api v0.31.0
-	google.golang.org/genproto v0.0.0-20200903010400-9bfcb5116336 // indirect
+	google.golang.org/genproto v0.0.0-20200910191746-8ad3c7ee2cd1 // indirect
+	google.golang.org/grpc v1.32.0 // indirect
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/VividCortex/ewma.v1 v1.1.1 // indirect
 	gopkg.in/cheggaaa/pb.v2 v2.0.7 // indirect
