@@ -8,7 +8,7 @@ require (
 	cloud.google.com/go/pubsub v1.6.1 // indirect
 	cloud.google.com/go/storage v1.11.0
 	github.com/briandowns/spinner v1.11.1
-	github.com/candidatos-info/descritor v0.0.0-20200911131026-fa03d51e63fb
+	github.com/candidatos-info/descritor v0.0.0-20200911222312-34ea00844311
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
 	github.com/cheggaaa/pb v2.0.7+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.5 // indirect
@@ -26,7 +26,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sys v0.0.0-20200909081042-eff7692f9009 // indirect
 	golang.org/x/text v0.3.3
-	golang.org/x/tools v0.0.0-20200911153331-7ad463ce66dd // indirect
+	golang.org/x/tools v0.0.0-20200911193555-6422fca01df9 // indirect
 	google.golang.org/api v0.31.0
 	google.golang.org/genproto v0.0.0-20200911024640-645f7a48b24f // indirect
 	google.golang.org/grpc v1.32.0 // indirect

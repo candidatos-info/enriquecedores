@@ -66,6 +66,8 @@ github.com/candidatos-info/descritor v0.0.0-20200910120633-5b8459bab69c h1:97Leh
 github.com/candidatos-info/descritor v0.0.0-20200910120633-5b8459bab69c/go.mod h1:bINo8SlUue0BcU8WrlgyTVJMi9r9Awbo5I+cuZn1niI=
 github.com/candidatos-info/descritor v0.0.0-20200911131026-fa03d51e63fb h1:aOTR79Py3O+VmLGMgzquoxw8eLBWXyWomitGd2fpQQk=
 github.com/candidatos-info/descritor v0.0.0-20200911131026-fa03d51e63fb/go.mod h1:bINo8SlUue0BcU8WrlgyTVJMi9r9Awbo5I+cuZn1niI=
+github.com/candidatos-info/descritor v0.0.0-20200911222312-34ea00844311 h1:ZQoEmYP30DWPNqOw55veZAXke8GV/keAstuVRJqgCjA=
+github.com/candidatos-info/descritor v0.0.0-20200911222312-34ea00844311/go.mod h1:bINo8SlUue0BcU8WrlgyTVJMi9r9Awbo5I+cuZn1niI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 h1:SKI1/fuSdodxmNNyVBR8d7X/HuLnRpvvFO0AgyQk764=
 github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927/go.mod h1:h/aW8ynjgkuj+NQRlZcDbAbM1ORAbXjXX77sX7T289U=
@@ -400,6 +402,8 @@ golang.org/x/tools v0.0.0-20200910165216-53e29e9d1252 h1:qn28WK3EvdJOSlyZFNeWnaE
 golang.org/x/tools v0.0.0-20200910165216-53e29e9d1252/go.mod h1:Cj7w3i3Rnn0Xh82ur9kSqwfTHTeVxaDqrfMjpcNT6bE=
 golang.org/x/tools v0.0.0-20200911153331-7ad463ce66dd h1:EsTBWdirTvPYbomEwlpq2y7Z3qqsNm6BkseJHhdOvYM=
 golang.org/x/tools v0.0.0-20200911153331-7ad463ce66dd/go.mod h1:Cj7w3i3Rnn0Xh82ur9kSqwfTHTeVxaDqrfMjpcNT6bE=
+golang.org/x/tools v0.0.0-20200911193555-6422fca01df9 h1:M8mz5B5dntyYZSIscpClTVyMIJbg6kKKIyysZM++kf8=
+golang.org/x/tools v0.0.0-20200911193555-6422fca01df9/go.mod h1:Cj7w3i3Rnn0Xh82ur9kSqwfTHTeVxaDqrfMjpcNT6bE=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
