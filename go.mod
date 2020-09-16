@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/datastore v1.2.0
 	cloud.google.com/go/pubsub v1.6.1 // indirect
 	cloud.google.com/go/storage v1.11.0
+	github.com/ABuarque/simple-compression-service/src/libs/storage v0.0.0-20200503195939-19940a9f5bc6
 	github.com/briandowns/spinner v1.11.1
 	github.com/candidatos-info/descritor v0.0.0-20200911222312-34ea00844311
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect

@@ -49,6 +49,9 @@ cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9
 cloud.google.com/go/storage v1.11.0 h1:bSLyzhbGjLMYxCratCDRSSH7+xRGpNApTBmowDUFGLk=
 cloud.google.com/go/storage v1.11.0/go.mod h1:/PAbprKS+5msVYogBmczjWalDXnQ9mr64yEq9YnyPeo=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
+github.com/ABuarque/simple-compression-service v0.0.0-20200503195939-19940a9f5bc6 h1:qLYXN/v/38gcNrRdbQKJ4hTQ9KCavMirENOtcL1/AQ0=
+github.com/ABuarque/simple-compression-service/src/libs/storage v0.0.0-20200503195939-19940a9f5bc6 h1:j1cOOPNzAgz93B4knYQ/xENNfeQVuTV7MYV0ZYWrRlA=
+github.com/ABuarque/simple-compression-service/src/libs/storage v0.0.0-20200503195939-19940a9f5bc6/go.mod h1:qJAxRFuahjs/NvdTaGkFmB9uHNIa0VtdezNWgC+5178=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
