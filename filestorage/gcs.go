@@ -35,16 +35,16 @@ func NewGCSClient() FileStorage {
 
 // Upload gets and io.Reader, like a os.File, and uploads
 // its content to a bucket accoring with the given path
-func (gcs *GSCClient) Upload(b []byte, bucket, fileName string) error {
+func (gcs *GSCClient) Upload(b []byte, bucket, fileName string) (string, error) {
 	r := bytes.NewReader(b)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	wc := gcs.client.Bucket(bucket).Object(fileName).NewWriter(ctx)
 	if _, err := io.Copy(wc, r); err != nil {
-		return fmt.Errorf("falha ao copiar conteúdo de arquivo local para o bucket no GCS (%s/%s), erro %q", bucket, fileName, err)
+		return "", fmt.Errorf("falha ao copiar conteúdo de arquivo local para o bucket no GCS (%s/%s), erro %q", bucket, fileName, err)
 	}
 	if err := wc.Close(); err != nil {
-		return fmt.Errorf("falha ao fechar storate.Writter object (%s/%s), erro %q", bucket, fileName, err)
+		return "", fmt.Errorf("falha ao fechar storate.Writter object (%s/%s), erro %q", bucket, fileName, err)
 	}
-	return nil
+	return fmt.Sprintf("%s/%s", bucket, fileName), nil
 }
