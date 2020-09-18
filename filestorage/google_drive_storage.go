@@ -48,7 +48,7 @@ func NewGoogleDriveStorage(credentialsFile, oauthToken string) (FileStorage, err
 }
 
 // the bucket argument for Google Drive is the folder ID.
-func (gd *googleDrive) Upload(b []byte, bucket, fileName string) error {
+func (gd *googleDrive) Upload(b []byte, bucket, fileName string) (string, error) {
 	f := &drive.File{
 		MimeType: "application/octet-stream",
 		Name:     fileName,
@@ -56,10 +56,11 @@ func (gd *googleDrive) Upload(b []byte, bucket, fileName string) error {
 	}
 	buffer := new(bytes.Buffer)
 	if _, err := buffer.Write(b); err != nil {
-		return fmt.Errorf("falha ao copiar conteúdo de arquivo para buffer temporário, erro %q", err)
+		return "", fmt.Errorf("falha ao copiar conteúdo de arquivo para buffer temporário, erro %q", err)
 	}
-	if _, err := gd.service.Files.Create(f).Media(buffer).Do(); err != nil {
-		return err
+	uploadedFile, err := gd.service.Files.Create(f).Media(buffer).Do()
+	if err != nil {
+		return "", err
 	}
-	return nil
+	return uploadedFile.Id, nil
 }

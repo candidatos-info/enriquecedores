@@ -1,7 +1,6 @@
 package filestorage
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -12,12 +11,11 @@ func TestUpload(t *testing.T) {
 	fileStorage := NewLocalStorage()
 	dir := "dir"
 	fileName := "aname.txt"
-	err := fileStorage.Upload([]byte(content), dir, fileName)
+	path, err := fileStorage.Upload([]byte(content), dir, fileName)
 	if err != nil {
 		t.Errorf("expected erro nil when writing a file, got %q", err)
 	}
-	pathToCheck := fmt.Sprintf("%s/%s", dir, fileName)
-	fileContent, err := ioutil.ReadFile(pathToCheck)
+	fileContent, err := ioutil.ReadFile(path)
 	if err != nil {
 		t.Errorf("expected err nil when reading file, got %q", err)
 	}

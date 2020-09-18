@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -33,7 +34,7 @@ func TestCollect(t *testing.T) {
 	}
 }
 
-func TestProcess(t *testing.T) {
+func TestFullProcess(t *testing.T) {
 	currentPath, err := os.Getwd()
 	if err != nil {
 		t.Errorf("expected to have err nil when getting current path, got %q", err)
@@ -51,7 +52,15 @@ func TestProcess(t *testing.T) {
 	if err = os.MkdirAll(dirToSaveCandidatures, 0755); err != nil {
 		t.Errorf("expected error nil when creating a test directory [%s], got %q", dirToSaveCandidatures, err)
 	}
-	if err := process(stateToTest, outputDir, dirToSaveCandidatures, "", ""); err != nil {
+	localCacheDir := "localCache"
+	offset := 0
+	logFileName := "candidatures_path-2016-SP.csv"
+	logFile, err := os.Create(logFileName)
+	if err != nil {
+		t.Errorf("expected err nil when creating log file, error %v", err)
+	}
+	defer logFile.Close()
+	if err := process(stateToTest, outputDir, dirToSaveCandidatures, localCacheDir, "", "", offset, logFile); err != nil {
 		t.Errorf("expected err nil when processing files, got %q", err)
 	}
 	expectedSequancialCandidateToHave := "260000003557"
@@ -83,6 +92,137 @@ func TestProcess(t *testing.T) {
 		t.Errorf("expected erro nil when removing created files")
 	}
 	if err := os.RemoveAll(dirToSaveCandidatures); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+	expectedFilesToHaveOnLocalCache := map[string]struct{}{
+		"SP_260000002646.pb": struct{}{},
+		"SP_260000003056.pb": struct{}{},
+		"SP_260000003557.pb": struct{}{},
+		"SP_260000003630.pb": struct{}{},
+		"SP_260000004485.pb": struct{}{},
+		"SP_260000005823.pb": struct{}{},
+		"SP_260000006327.pb": struct{}{},
+		"SP_260000006766.pb": struct{}{},
+		"SP_260000006899.pb": struct{}{},
+	}
+	filesOnLocalCache, err := ioutil.ReadDir(localCacheDir)
+	if err != nil {
+		t.Errorf("expected err nil when listing files of localCacheDir, got error %v", err)
+	}
+	for _, file := range filesOnLocalCache {
+		if _, ok := expectedFilesToHaveOnLocalCache[file.Name()]; !ok {
+			t.Errorf("expected to find file [%s] on local cache dir [%s]", file.Name(), localCacheDir)
+		}
+	}
+	if err := os.RemoveAll(localCacheDir); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+	expectedLinesToHaveOnOutputFile := map[string]struct{}{
+		"candidatures/SP_260000003630.pb,localCache/SP_260000003630.pb": struct{}{},
+		"candidatures/SP_260000006766.pb,localCache/SP_260000006766.pb": struct{}{},
+		"candidatures/SP_260000003056.pb,localCache/SP_260000003056.pb": struct{}{},
+		"candidatures/SP_260000004485.pb,localCache/SP_260000004485.pb": struct{}{},
+		"candidatures/SP_260000006899.pb,localCache/SP_260000006899.pb": struct{}{},
+		"candidatures/SP_260000002646.pb,localCache/SP_260000002646.pb": struct{}{},
+		"candidatures/SP_260000003557.pb,localCache/SP_260000003557.pb": struct{}{},
+		"candidatures/SP_260000005823.pb,localCache/SP_260000005823.pb": struct{}{},
+		"candidatures/SP_260000006327.pb,localCache/SP_260000006327.pb": struct{}{},
+	}
+	outputFile, err := os.Open(logFileName)
+	if err != nil {
+		t.Errorf("expected err nil when opening output file, erro %v", err)
+	}
+	scanner := bufio.NewScanner(outputFile)
+	for scanner.Scan() {
+		if _, ok := expectedLinesToHaveOnOutputFile[scanner.Text()]; !ok {
+			t.Errorf("expected to have output [%s] on expectedLinesToHaveOnOutputFile", scanner.Text())
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Errorf("expected err nil scanning file, got %v", err)
+	}
+	if err := os.RemoveAll(logFileName); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+}
+
+func TestOffset(t *testing.T) {
+	currentPath, err := os.Getwd()
+	if err != nil {
+		t.Errorf("expected to have err nil when getting current path, got %q", err)
+	}
+	testFilePath := fmt.Sprintf("file://%s/files_2016.zip", currentPath)
+	outputDir := "output"
+	if err = os.MkdirAll(outputDir, 0755); err != nil {
+		t.Errorf("expected error nil when creating a test directory [%s], got %q", outputDir, err)
+	}
+	if err := collect(testFilePath, outputDir); err != nil {
+		t.Errorf("expected to have err nil when collecting files, got %q", err)
+	}
+	stateToTest := "SP"
+	dirToSaveCandidatures := "candidatures"
+	if err = os.MkdirAll(dirToSaveCandidatures, 0755); err != nil {
+		t.Errorf("expected error nil when creating a test directory [%s], got %q", dirToSaveCandidatures, err)
+	}
+	localCacheDir := "localCache"
+	offset := 3
+	logFileName := "candidatures_path-2016-SP.csv"
+	logFile, err := os.Create(logFileName)
+	if err != nil {
+		t.Errorf("expected err nil when creating log file, error %v", err)
+	}
+	defer logFile.Close()
+	if err := process(stateToTest, outputDir, dirToSaveCandidatures, localCacheDir, "", "", offset, logFile); err != nil {
+		t.Errorf("expected err nil when processing files, got %q", err)
+	}
+	if err := os.RemoveAll(outputDir); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+	if err := os.RemoveAll(dirToSaveCandidatures); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+	expectedFilesToHaveOnLocalCache := map[string]struct{}{
+		"SP_260000002646.pb": struct{}{},
+		"SP_260000003557.pb": struct{}{},
+		"SP_260000004485.pb": struct{}{},
+		"SP_260000005823.pb": struct{}{},
+		"SP_260000006327.pb": struct{}{},
+		"SP_260000006899.pb": struct{}{},
+	}
+	filesOnLocalCache, err := ioutil.ReadDir(localCacheDir)
+	if err != nil {
+		t.Errorf("expected err nil when listing files of localCacheDir, got error %v", err)
+	}
+	for _, file := range filesOnLocalCache {
+		if _, ok := expectedFilesToHaveOnLocalCache[file.Name()]; !ok {
+			t.Errorf("expected to find file [%s] on local cache dir [%s]", file.Name(), localCacheDir)
+		}
+	}
+	expectedLinesToHaveOnOutputFile := map[string]struct{}{
+		"candidatures/SP_260000004485.pb,localCache/SP_260000004485.pb": struct{}{},
+		"candidatures/SP_260000006899.pb,localCache/SP_260000006899.pb": struct{}{},
+		"candidatures/SP_260000002646.pb,localCache/SP_260000002646.pb": struct{}{},
+		"candidatures/SP_260000003557.pb,localCache/SP_260000003557.pb": struct{}{},
+		"candidatures/SP_260000005823.pb,localCache/SP_260000005823.pb": struct{}{},
+		"candidatures/SP_260000006327.pb,localCache/SP_260000006327.pb": struct{}{},
+	}
+	outputFile, err := os.Open(logFileName)
+	if err != nil {
+		t.Errorf("expected err nil when opening output file, erro %v", err)
+	}
+	scanner := bufio.NewScanner(outputFile)
+	for scanner.Scan() {
+		if _, ok := expectedLinesToHaveOnOutputFile[scanner.Text()]; !ok {
+			t.Errorf("expected to have output [%s] on expectedLinesToHaveOnOutputFile", scanner.Text())
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Errorf("expected err nil scanning file, got %v", err)
+	}
+	if err := os.RemoveAll(logFileName); err != nil {
+		t.Errorf("expected erro nil when removing created files")
+	}
+	if err := os.RemoveAll(localCacheDir); err != nil {
 		t.Errorf("expected erro nil when removing created files")
 	}
 }

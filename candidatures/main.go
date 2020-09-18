@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -28,11 +29,7 @@ import (
 )
 
 const (
-	port             = 9999 // port user to up this local server
-	statusCollecting = 1    // integer to represent status collecting
-	statusIdle       = 0    // integer to represent status idle
-	statusHashing    = 2    // integer to represent status hashing
-	maxAttempts      = 5
+	maxAttempts = 5
 )
 
 var (
@@ -67,9 +64,12 @@ func main() {
 	source := flag.String("sourceFile", "", "fonte do arquivo zip")
 	localDir := flag.String("localDir", "", "diretório para colocar os arquivos .csv de candidaturas")
 	state := flag.String("state", "", "estado a ser processado")
-	candidaturesDir := flag.String("outDir", "", "local de armazenamento de candidaturas") // if for GCS pass gs://${BUCKET}, if for local pass the local path
+	candidaturesDir := flag.String("candidaturesDir", "", "local de armazenamento de candidaturas na nuvem")
+	localCacheDir := flag.String("localCache", "", "local para guardar arquivos localmente")
 	googleDriveCredentialsFile := flag.String("credentials", "", "chave de credenciais o Goodle Drive")
 	goodleDriveOAuthTokenFile := flag.String("OAuthToken", "", "arquivo com token oauth")
+	offset := flag.Int("offset", 0, "linha para iniciar processado")
+	year := flag.Int("year", 0, "ano da eleição")
 	flag.Parse()
 	if *source != "" {
 		if *localDir == "" {
@@ -82,13 +82,34 @@ func main() {
 		if *candidaturesDir == "" {
 			log.Fatal("informe local de armazenamento de candidaturas")
 		}
+		if *localCacheDir == "" {
+			log.Fatal("informe o diretório de cache")
+		}
+		if *googleDriveCredentialsFile == "" {
+			log.Fatal("informe o path para o arquivo de crendenciais do Google Drive")
+		}
+		if *goodleDriveOAuthTokenFile == "" {
+			log.Fatal("informe o path par ao arquivo de token OAuth do drive")
+		}
 		if *state == "" {
 			log.Fatal("informe estado a ser processado")
 		}
 		if *localDir == "" {
 			log.Fatal("informe diretório de saída")
 		}
-		if err := process(*state, *localDir, *candidaturesDir, *googleDriveCredentialsFile, *goodleDriveOAuthTokenFile); err != nil {
+		if *year == 0 {
+			log.Fatal("informe o ano da eleição")
+		}
+		if *offset < 0 {
+			log.Fatal("offset deve ser maior ou igual a zero")
+		}
+		protoBuffFileName := fmt.Sprintf("candidatures_path-%d-%s.csv", *year, *state)
+		protoBuffFiles, err := os.Create(protoBuffFileName)
+		if err != nil {
+			log.Fatalf("falha ao criar arquivo com caminhos de protocol buffers, erro %v\n", err)
+		}
+		defer protoBuffFiles.Close()
+		if err := process(*state, *localDir, *candidaturesDir, *localCacheDir, *googleDriveCredentialsFile, *goodleDriveOAuthTokenFile, *offset, protoBuffFiles); err != nil {
 			log.Fatalf("falha ao executar enriquecimento, erro %v", err)
 		}
 	}
@@ -200,17 +221,18 @@ func unzipDownloadedFiles(buf []byte, unzipDestination string) ([]string, error)
 	return paths, nil
 }
 
-func process(state, outDir, candidaturesDir, googleDriveCredentialsFile, goodleDriveOAuthTokenFile string) error {
-	var client filestorage.FileStorage
-	if googleDriveCredentialsFile != "" && goodleDriveOAuthTokenFile != "" {
+func process(state, outDir, candidaturesDir, localCacheDir, googleDriveCredentialsFile, goodleDriveOAuthTokenFile string, offset int, logFile *os.File) error {
+	var cloudStorageClient filestorage.FileStorage
+	if goodleDriveOAuthTokenFile == "" || googleDriveCredentialsFile == "" {
+		cloudStorageClient = filestorage.NewLocalStorage()
+	} else {
 		var err error
-		client, err = filestorage.NewGoogleDriveStorage(googleDriveCredentialsFile, goodleDriveOAuthTokenFile)
+		cloudStorageClient, err = filestorage.NewGoogleDriveStorage(googleDriveCredentialsFile, goodleDriveOAuthTokenFile)
 		if err != nil {
 			return fmt.Errorf("falha ao criar cliente do Google Drive, erro %q", err)
 		}
-	} else {
-		client = filestorage.NewLocalStorage()
 	}
+	localStorageClient := filestorage.NewLocalStorage()
 	pathToHandle := ""
 	err := filepath.Walk(outDir, func(path string, info os.FileInfo, err error) error {
 		if strings.Contains(path, state) {
@@ -244,20 +266,38 @@ func process(state, outDir, candidaturesDir, googleDriveCredentialsFile, goodleD
 	if err != nil {
 		return fmt.Errorf("falha ao remover candidaturas duplicadas, erro %q", err)
 	}
-	for _, candidature := range filteredCandidatures {
+	var keys []string
+	for key := range filteredCandidatures {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	nextOffset := offset
+	for _, key := range keys[offset:] { // selecting a slice according with an offset which is the "step" where previous processing has stopped
+		candidature := filteredCandidatures[key]
 		b, err := proto.Marshal(candidature)
 		if err != nil {
-			return fmt.Errorf("falha ao serializar grupo de cidades, erro %q", err)
+			return fmt.Errorf("falha ao serializar grupo de cidades. OFFSET: [%d], erro %q", nextOffset, err)
 		}
 		fileName := fmt.Sprintf("%s_%s.pb", state, candidature.SequencialCandidato)
+		var googleDriveFileID string
+		var localFilePath string
 		err = try.Do(func(attempt int) (bool, error) {
-			return attempt < maxAttempts, client.Upload(b, candidaturesDir, fileName)
+			googleDriveFileID, err = cloudStorageClient.Upload(b, candidaturesDir, fileName) // sending to Google Drive
+			return attempt < maxAttempts, err
+		})
+		err = try.Do(func(attempt int) (bool, error) {
+			localFilePath, err = localStorageClient.Upload(b, localCacheDir, fileName) // saving file locally
+			return attempt < maxAttempts, err
 		})
 		if err != nil {
-			return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %s", fileName, candidaturesDir, handleDriveError(err.Error()))
+			return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s]. OFFSET: [%d], erro %s", fileName, candidaturesDir, nextOffset, handleDriveError(err.Error()))
 		}
 		log.Printf("sent candidate [ %s ]\n", fileName)
 		time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
+		if _, err := logFile.WriteString(fmt.Sprintf("%s,%s\n", googleDriveFileID, localFilePath)); err != nil {
+			return fmt.Errorf("falha ao salvar Google Drive ID [%s] e path [%s] no arquivo de logs. OFFSET: [%d], erro %v", googleDriveFileID, localFilePath, nextOffset, err)
+		}
+		nextOffset++
 	}
 	return nil
 }
