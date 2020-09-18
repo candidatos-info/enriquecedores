@@ -57,7 +57,8 @@ func process(stateDir, storageDir string, client filestorage.FileStorage) error 
 				return fmt.Errorf("falha ao ler arquivo [%s], erro %q", path, err)
 			}
 			err = try.Do(func(attempt int) (bool, error) {
-				return attempt < maxAttempts, client.Upload(b, storageDir, filePath)
+				_, err := client.Upload(b, storageDir, filePath)
+				return attempt < maxAttempts, err
 			})
 			if err != nil {
 				return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %q", filePath, storageDir, err)
