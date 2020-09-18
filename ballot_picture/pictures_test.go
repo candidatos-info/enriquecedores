@@ -46,7 +46,4 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected error nil when running stat on expected file, got %q", err)
 	}
-	if err := os.RemoveAll(logFileName); err != nil {
-		t.Errorf("expected erro nil when removing log file, erro %v", err)
-	}
 }
