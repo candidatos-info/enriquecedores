@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
@@ -16,8 +17,8 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 		t.Errorf("expected error nil when creating temporary dir for pictures, erro %v", err)
 	}
 	defer os.RemoveAll(picturesDir)
-	fakeSequencialCandidate := "260000003557"
-	fakePictureFile := fmt.Sprintf("%s/%s.jpg", picturesDir, fakeSequencialCandidate)
+	fakeSequencialCandidate := "260000003557.jpg"
+	fakePictureFile := fmt.Sprintf("%s/%s", picturesDir, fakeSequencialCandidate)
 	dumbMessage := "dumb file"
 	if err := ioutil.WriteFile(fakePictureFile, []byte(dumbMessage), 0644); err != nil {
 		t.Errorf("expected error nil when create file [%s] to simulate a picture file, got %q", fakePictureFile, err)
@@ -38,12 +39,25 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 	}
 	defer os.Remove(logFile.Name())
 	defer logFile.Close()
-	if err := process(picturesDir, storageDir, filestorage.NewLocalStorage(), logFile); err != nil {
+	picturesCache, err := ioutil.TempFile("", "picturesCache")
+	if err != nil {
+		t.Errorf("expected err nil when creating pictures cache file, go %v", err)
+	}
+	defer os.Remove(picturesCache.Name())
+	defer logFile.Close()
+	if err := process(picturesDir, storageDir, filestorage.NewLocalStorage(), logFile, picturesCache); err != nil {
 		t.Errorf("expected error nil when running process, error %q", err)
 	}
-	expectedFileToFindOnStorageDirAfterProcess := fmt.Sprintf("%s/%s_%s.jpg", storageDir, filepath.Base(picturesDir), fakeSequencialCandidate)
+	expectedFileToFindOnStorageDirAfterProcess := fmt.Sprintf("%s/%s_%s", storageDir, filepath.Base(picturesDir), fakeSequencialCandidate)
 	_, err = os.Stat(expectedFileToFindOnStorageDirAfterProcess)
 	if err != nil {
 		t.Errorf("expected error nil when running stat on expected file, got %q", err)
+	}
+	contentOfCacheFile, err := ioutil.ReadFile(picturesCache.Name())
+	if err != nil {
+		t.Errorf("expected err nil when reading cache file, got %v", err)
+	}
+	if !strings.Contains(string(contentOfCacheFile), fakeSequencialCandidate) {
+		t.Errorf("expected to find the name of fake file on cache file")
 	}
 }
