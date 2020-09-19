@@ -70,6 +70,7 @@ func main() {
 	goodleDriveOAuthTokenFile := flag.String("OAuthToken", "", "arquivo com token oauth")
 	offset := flag.Int("offset", 0, "linha para iniciar processado")
 	year := flag.Int("year", 0, "ano da eleição")
+	outputFile := flag.String("outputFile", "", "path do arquivo de saída dos paths dos arquivos de candidaturas") // if not passed a new one will be created
 	flag.Parse()
 	if *source != "" {
 		if *localDir == "" {
@@ -103,10 +104,22 @@ func main() {
 		if *offset < 0 {
 			log.Fatal("offset deve ser maior ou igual a zero")
 		}
-		protoBuffFileName := fmt.Sprintf("candidatures_path-%d-%s.csv", *year, *state)
-		protoBuffFiles, err := os.Create(protoBuffFileName)
-		if err != nil {
-			log.Fatalf("falha ao criar arquivo com caminhos de protocol buffers, erro %v\n", err)
+		var protoBuffFiles *os.File
+		var err error
+		if *outputFile == "" {
+			protoBuffFileName := fmt.Sprintf("candidatures_path-%d-%s.csv", *year, *state)
+			protoBuffFiles, err = os.Create(protoBuffFileName)
+			if _, err := protoBuffFiles.WriteString("google_drive_id,proto_buff_path\n"); err != nil {
+				log.Fatalf("falha ao escrever tags no arquivo csv, erro %v\n", err)
+			}
+			if err != nil {
+				log.Fatalf("falha ao criar arquivo com caminhos de protocol buffers, erro %v\n", err)
+			}
+		} else {
+			protoBuffFiles, err = os.OpenFile(*outputFile, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+			if err != nil {
+				log.Fatalf("falha ao abrir arquivo passado para ser usado como arquivo de saída localizado em [%s], erro %v", *outputFile, err)
+			}
 		}
 		defer protoBuffFiles.Close()
 		if err := process(*state, *localDir, *candidaturesDir, *localCacheDir, *googleDriveCredentialsFile, *goodleDriveOAuthTokenFile, *offset, protoBuffFiles); err != nil {
