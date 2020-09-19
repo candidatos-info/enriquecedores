@@ -9,7 +9,7 @@ Onde a URL é a fonte dos arquivos .zip, pondendo ser passado uma URL usando pro
 
 Após a etapa de coleta devemos executar o enriquecimento. Para executar o enriquecimento use o seguinte comando:
 ```
-go run main.go -candidaturesDir=${CANDIDATURES_DIR} -localCache=${LOCAL_CACHE} -credentials=${CREDENTIALS_FILE} -OAuthToken=${OAUTH_TOKEN_FILE} -year=${YEAR} -state=${STATE} -localDir=${OUTDIR} --offset=${OFFSET}
+go run main.go -candidaturesDir=${CANDIDATURES_DIR} -localCache=${LOCAL_CACHE} -credentials=${CREDENTIALS_FILE} -OAuthToken=${OAUTH_TOKEN_FILE} -year=${YEAR} -state=${STATE} -localDir=${OUTDIR} --offset=${OFFSET} --outputFile=${OUTPUT_FILE}
 ```
 
 Onde: 
@@ -21,11 +21,12 @@ Onde:
 + STATE é a sigla do estado para ser processado (VEJA A TABELA ABAIXO COM AS SIGLAS DOS ESTADOS);
 + OUTDIR é o diretório onde os arquivos CSV foram colocados;
 + OFFSET é um inteiro que indica a linha de processamento que o programa deve começar a rodar. Pode ocorrer de um processamento terminar com erro no meio do caminho, e essa flag será printada via STDOUT para que você rode novamente o programa de onde parou;
++ OUTPUT_FILE é o path para o arquivo de logs. Caso não seja passado sera criado um novo;
 
 Um exemplo completo de chamada é o seguinte:
 
 ```
-go run main.go -candidaturesDir=505102302j02s10sj26969 -localCache=/Users/user0/candidatos.info/enriquecedoes/candidatures/cache -credentials=/Users/user0/candidatos.info/enriquecedores/credentials.json -OAuthToken=/Users/user0/candidatos.info/enriquecedores/token.json -year=2016 -state=AL -localDir=/Users/user0/Downloads/consulta_cand_2016/ --offset=0
+go run main.go -candidaturesDir=505102302j02s10sj26969 -localCache=/Users/user0/candidatos.info/enriquecedoes/candidatures/cache -credentials=/Users/user0/candidatos.info/enriquecedores/credentials.json -OAuthToken=/Users/user0/candidatos.info/enriquecedores/token.json -year=2016 -state=AL -localDir=/Users/user0/Downloads/consulta_cand_2016/ --offset=0 -outputFile=/Users/user0/candidatos.info/enriquecedores/candidatures/candidatures_path-2020-AL.csv
 ```
 
 | Estado | Sigla |
