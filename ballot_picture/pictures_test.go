@@ -45,7 +45,8 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 	}
 	defer os.Remove(picturesCache.Name())
 	defer logFile.Close()
-	if err := process(picturesDir, storageDir, filestorage.NewLocalStorage(), logFile, picturesCache); err != nil {
+	source := "tse"
+	if err := process(source, picturesDir, storageDir, filestorage.NewLocalStorage(), logFile, picturesCache); err != nil {
 		t.Errorf("expected error nil when running process, error %q", err)
 	}
 	expectedFileToFindOnStorageDirAfterProcess := fmt.Sprintf("%s/%s_%s", storageDir, filepath.Base(picturesDir), fakeSequencialCandidate)

@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
@@ -17,6 +17,10 @@ import (
 
 const (
 	maxAttempts = 5 // number of times to retry
+)
+
+var (
+	re = regexp.MustCompile(`([0-9]+)`) // regexp to extract numbers
 )
 
 func main() {
@@ -82,7 +86,7 @@ func main() {
 	} else {
 		client = filestorage.NewLocalStorage()
 	}
-	if err := process(*stateDir, *destinationDir, client, picturesReferenceFile, handledPictures); err != nil {
+	if err := process(*state, *stateDir, *destinationDir, client, picturesReferenceFile, handledPictures); err != nil {
 		log.Fatalf("falha ao enriquecer fotos, erro %q", err)
 	}
 }
@@ -90,7 +94,7 @@ func main() {
 // it gets as argument the local path where pictures to be processed are placed (stateDir)
 // and the storageDir which is the place where candidatures are placed
 // and where the pictures will be placed too.
-func process(stateDir, storageDir string, client filestorage.FileStorage, picturesReferenceFile, handledPictures *os.File) error {
+func process(state, stateDir, storageDir string, client filestorage.FileStorage, picturesReferenceFile, handledPictures *os.File) error {
 	processedPictures := make(map[string]struct{})
 	scanner := bufio.NewScanner(handledPictures)
 	for scanner.Scan() {
@@ -103,8 +107,9 @@ func process(stateDir, storageDir string, client filestorage.FileStorage, pictur
 		if path != stateDir {
 			var googleDriveID string
 			fileName := filepath.Base(path)
+			sequencialCandidateFromFileName := re.FindAllString(filepath.Base(fileName), -1)[0]
 			if _, ok := processedPictures[fileName]; !ok { // checking if picture has already been processed
-				filePath := fmt.Sprintf("%s_%s", filepath.Base(stateDir), fileName) // ${ESTADO}_${SEQUENCIAL_CANDIDATE}
+				filePath := fmt.Sprintf("%s_%s%s", state, sequencialCandidateFromFileName, filepath.Ext(fileName)) // ${ESTADO}_${SEQUENCIAL_CANDIDATE}.${EXTENSION}
 				b, err := ioutil.ReadFile(path)
 				if err != nil {
 					return fmt.Errorf("falha ao ler arquivo [%s], erro %q", path, err)
@@ -118,14 +123,14 @@ func process(stateDir, storageDir string, client filestorage.FileStorage, pictur
 				}
 				log.Printf("sent file [%s]\n", filePath)
 				time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
-				if _, err := picturesReferenceFile.WriteString(fmt.Sprintf("%s,%s\n", googleDriveID, strings.TrimSuffix(fileName, filepath.Ext(fileName)))); err != nil {
+				if _, err := picturesReferenceFile.WriteString(fmt.Sprintf("%s,%s\n", googleDriveID, sequencialCandidateFromFileName)); err != nil {
 					log.Fatalf("falha ao escrever tags no arquivo csv, erro %v\n", err)
 				}
 				if _, err := handledPictures.WriteString(fmt.Sprintf("%s\n", fileName)); err != nil {
-					log.Fatalf("falha ao escrever arquivo processado [%s], erro %v\n", fileName, err)
+					log.Fatalf("falha ao escrever arquivo processado [%s], erro %v\n", sequencialCandidateFromFileName, err)
 				}
 			} else {
-				log.Printf("file [%s] already processed\n", fileName)
+				log.Printf("file [%s] already processed\n", sequencialCandidateFromFileName)
 			}
 		}
 		return nil
