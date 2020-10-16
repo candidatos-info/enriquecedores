@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"time"
 
 	"github.com/candidatos-info/enriquecedores/filestorage"
 	"github.com/matryer/try"
@@ -26,8 +25,6 @@ var (
 func main() {
 	stateDir := flag.String("inDir", "", "diretório onde as fotos do estado estão")
 	destinationDir := flag.String("outDir", "", "local onde ficam os arquivos de candidaturas e fotos")
-	googleDriveCredentialsFile := flag.String("credentials", "", "chave de credenciais o Goodle Drive")
-	goodleDriveOAuthTokenFile := flag.String("OAuthToken", "", "arquivo com token oauth")
 	year := flag.Int("year", -1, "ano da eleição")
 	state := flag.String("state", "", "estado da eleição")
 	outputFile := flag.String("outputFile", "", "path do arquivo de saída dos paths dos arquivos de candidaturas")                      // if not passed a new one will be created
@@ -76,16 +73,7 @@ func main() {
 		}
 	}
 	defer handledPictures.Close()
-	var client filestorage.FileStorage
-	if *googleDriveCredentialsFile != "" && *goodleDriveOAuthTokenFile != "" {
-		var err error
-		client, err = filestorage.NewGoogleDriveStorage(*googleDriveCredentialsFile, *goodleDriveOAuthTokenFile)
-		if err != nil {
-			log.Fatalf("falha ao criar cliente do Google Drive, erro %q", err)
-		}
-	} else {
-		client = filestorage.NewLocalStorage()
-	}
+	client := filestorage.NewAWSClient()
 	if err := process(*state, *stateDir, *destinationDir, client, picturesReferenceFile, handledPictures); err != nil {
 		log.Fatalf("falha ao enriquecer fotos, erro %q", err)
 	}
@@ -122,7 +110,6 @@ func process(state, stateDir, storageDir string, client filestorage.FileStorage,
 					return fmt.Errorf("falha ao salvar arquivo de candidatura [%s] no bucket [%s], erro %q", filePath, storageDir, err)
 				}
 				log.Printf("sent file [%s]\n", filePath)
-				time.Sleep(time.Second * 1) // esse delay é colocado para evitar atingir o limite de requests por segundo. Preste atenção ao tamanho do arquivo que irá enviar.
 				if _, err := picturesReferenceFile.WriteString(fmt.Sprintf("%s,%s\n", googleDriveID, sequencialCandidateFromFileName)); err != nil {
 					log.Fatalf("falha ao escrever tags no arquivo csv, erro %v\n", err)
 				}
