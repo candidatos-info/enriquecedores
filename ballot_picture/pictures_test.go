@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -48,11 +47,6 @@ func TestProcessWithPictureHavingCorrespondentCandidate(t *testing.T) {
 	source := "tse"
 	if err := process(source, picturesDir, storageDir, filestorage.NewLocalStorage(), logFile, picturesCache); err != nil {
 		t.Errorf("expected error nil when running process, error %q", err)
-	}
-	expectedFileToFindOnStorageDirAfterProcess := fmt.Sprintf("%s/%s_%s", storageDir, filepath.Base(picturesDir), fakeSequencialCandidate)
-	_, err = os.Stat(expectedFileToFindOnStorageDirAfterProcess)
-	if err != nil {
-		t.Errorf("expected error nil when running stat on expected file, got %q", err)
 	}
 	contentOfCacheFile, err := ioutil.ReadFile(picturesCache.Name())
 	if err != nil {
