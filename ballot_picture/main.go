@@ -47,7 +47,7 @@ func main() {
 	if *outputFile == "" {
 		protoBuffFileName := fmt.Sprintf("pictures_references-%d-%s.csv", *year, *state)
 		picturesReferenceFile, err = os.Create(protoBuffFileName)
-		if _, err := picturesReferenceFile.WriteString("s3_url,tse_sequencial_id\n"); err != nil {
+		if _, err := picturesReferenceFile.WriteString("picture_uri,tse_sequencial_id\n"); err != nil {
 			log.Fatalf("falha ao escrever tags no arquivo csv, erro %v\n", err)
 		}
 		if err != nil {
